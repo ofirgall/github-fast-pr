@@ -117,12 +117,11 @@ function buildItem(node: TreeNode, level: number): HTMLLIElement {
     li.dataset.digest = node.pathDigest;
     li.dataset.path = node.path;
     li.title = node.path;
-    row.append(chevSlot(false, false), leadSlot(node, false), el("span", "fast-pr-tree-name", node.name), linesBadge(node));
-    if (node.autoViewed) {
-      const m = el("span", "fast-pr-tree-auto", "✓");
-      m.title = "Auto-viewed";
-      row.append(m);
-    }
+    // The check is only visible while the row has data-viewed (see setViewed).
+    const mark = el("span", "fast-pr-tree-viewed");
+    mark.title = node.autoViewed ? "Auto-viewed" : "Viewed";
+    mark.append(icon(P.check));
+    row.append(chevSlot(false, false), leadSlot(node, false), el("span", "fast-pr-tree-name", node.name), linesBadge(node), mark);
     li.append(row);
   } else {
     li.dataset.kind = node.kind;
@@ -171,8 +170,7 @@ function setComments(li: HTMLElement, count: number): void {
   if (badge?.dataset.count === String(count)) return;
   if (!badge) {
     badge = el("span", "fast-pr-tree-comments");
-    const auto = row.querySelector(":scope > .fast-pr-tree-auto");
-    row.insertBefore(badge, auto);
+    row.insertBefore(badge, row.querySelector(":scope > .fast-pr-tree-viewed"));
   }
   badge.dataset.count = String(count);
   badge.title = `${count} comment${count === 1 ? "" : "s"}`;

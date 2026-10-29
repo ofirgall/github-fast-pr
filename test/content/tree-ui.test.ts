@@ -40,7 +40,8 @@ describe("renderTree", () => {
     // The auto-viewed group (Gen) starts collapsed.
     expect(groups.map((g) => g.getAttribute("aria-expanded"))).toEqual(["true", "true", "false"]);
     expect(ul.querySelector('[data-kind="dir"] .fast-pr-tree-name')!.textContent).toBe("src/a");
-    expect(ul.querySelectorAll(".fast-pr-tree-auto")).toHaveLength(1);
+    const marks = [...ul.querySelectorAll<HTMLElement>('[data-kind="file"] > .fast-pr-tree-row > .fast-pr-tree-viewed')];
+    expect(marks.map((m) => m.title)).toEqual(["Viewed", "Viewed", "Viewed", "Auto-viewed"]);
     expect(ul.querySelectorAll('li[tabindex="0"]')).toHaveLength(1);
   });
 
@@ -191,6 +192,18 @@ describe("setViewed", () => {
     expect(count().classList.contains("fast-pr-tree-count-done")).toBe(true);
     expect(count().querySelector("path")!.getAttribute("d")!.startsWith("M13.78")).toBe(true);
   });
+
+  it("marks single viewed files with a check", () => {
+    const ul = renderTree(buildGroupTree(toOrdered(FILES)), () => {});
+    const file = ul.querySelector<HTMLElement>('li[data-path="README.md"]')!;
+    const mark = file.querySelector<HTMLElement>(":scope > .fast-pr-tree-row > .fast-pr-tree-viewed")!;
+    expect(mark.querySelector("path")!.getAttribute("d")!.startsWith("M13.78")).toBe(true);
+    expect(mark.parentElement!.lastElementChild).toBe(mark);
+    setViewed(ul, (p) => p === "README.md");
+    expect(file.hasAttribute("data-viewed")).toBe(true);
+    setViewed(ul, () => false);
+    expect(file.hasAttribute("data-viewed")).toBe(false);
+  });
 });
 
 describe("mountTreePanel", () => {
@@ -249,6 +262,7 @@ describe("mountTreePanel", () => {
     const ours = (p: string) => document.querySelector<HTMLElement>(`.fast-pr-tree li[data-path="${p}"]`)!;
     expect(ours("src/a/x.ts").getAttribute("aria-current")).toBe("true");
     expect(ours("src/a/x.ts").querySelector(".fast-pr-tree-comments")!.textContent).toBe("4");
+    expect(ours("src/a/x.ts").querySelector(".fast-pr-tree-row")!.lastElementChild!.classList.contains("fast-pr-tree-viewed")).toBe(true);
     expect(ours("README.md").hasAttribute("aria-current")).toBe(false);
     expect(ours("README.md").querySelector(".fast-pr-tree-comments")).toBeNull();
     m.destroy();
