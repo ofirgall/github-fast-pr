@@ -2,13 +2,19 @@ import type { OrderedFile } from "../core/grouping";
 import { buildGroupTree, type TreeNode } from "../core/tree";
 import { getTreeMode, setTreeMode, type TreeMode } from "../core/storage";
 import type { FastPrFile, FastPrResult } from "../shared/types";
-import { el, icon, isOwnMutation, markUi, throttled } from "./dom";
+import { el, fmt, icon, isOwnMutation, markUi, throttled } from "./dom";
 
 export function toOrdered(
   files: FastPrFile[],
-): OrderedFile<{ path: string; pathDigest: string; changeType: string | null }>[] {
+): OrderedFile<{ path: string; pathDigest: string; changeType: string | null; linesAdded: number; linesDeleted: number }>[] {
   return files.map((f) => ({
-    file: { path: f.path, pathDigest: f.pathDigest, changeType: f.changeType ?? null },
+    file: {
+      path: f.path,
+      pathDigest: f.pathDigest,
+      changeType: f.changeType ?? null,
+      linesAdded: f.linesAdded,
+      linesDeleted: f.linesDeleted,
+    },
     group:
       f.group === null
         ? null
@@ -67,6 +73,27 @@ function countFiles(n: TreeNode): number {
   return n.kind === "file" ? 1 : n.children.reduce((a, c) => a + countFiles(c), 0);
 }
 
+function sumLines(n: TreeNode): { added: number; deleted: number } {
+  if (n.kind === "file") return { added: n.added, deleted: n.deleted };
+  return n.children.reduce(
+    (t, c) => {
+      const s = sumLines(c);
+      return { added: t.added + s.added, deleted: t.deleted + s.deleted };
+    },
+    { added: 0, deleted: 0 },
+  );
+}
+
+/** "+12 -3" like GitHub's diffstat: a zero side is left out. */
+function linesBadge(n: TreeNode): HTMLElement {
+  const { added, deleted } = sumLines(n);
+  const s = el("span", "fast-pr-tree-lines");
+  if (added) s.append(el("span", "fast-pr-add", `+${fmt(added)}`));
+  if (deleted) s.append(el("span", "fast-pr-del", `-${fmt(deleted)}`));
+  s.title = `${fmt(added)} added, ${fmt(deleted)} deleted`;
+  return s;
+}
+
 function buildItem(node: TreeNode, level: number): HTMLLIElement {
   const li = el("li");
   li.setAttribute("role", "treeitem");
@@ -79,7 +106,7 @@ function buildItem(node: TreeNode, level: number): HTMLLIElement {
     li.dataset.digest = node.pathDigest;
     li.dataset.path = node.path;
     li.title = node.path;
-    row.append(chevSlot(false, false), leadSlot(node, false), el("span", "fast-pr-tree-name", node.name));
+    row.append(chevSlot(false, false), leadSlot(node, false), el("span", "fast-pr-tree-name", node.name), linesBadge(node));
     if (node.autoViewed) {
       const m = el("span", "fast-pr-tree-auto", "✓");
       m.title = "Auto-viewed";
@@ -93,7 +120,15 @@ function buildItem(node: TreeNode, level: number): HTMLLIElement {
     if (node.kind === "dir") row.append(leadSlot(node, true));
     row.append(el("span", "fast-pr-tree-name", node.name));
     if (node.kind === "group" && node.autoViewed) row.append(el("span", "fast-pr-pill", "auto-viewed"));
-    row.append(el("span", "fast-pr-tree-count", String(countFiles(node))));
+    // With a single file inside, its own row already shows the lines and count.
+    const files = countFiles(node);
+    if (files > 1) {
+      row.append(linesBadge(node));
+      const count = el("span", "fast-pr-tree-count");
+      count.title = `${fmt(files)} files`;
+      count.append(icon(P.file), el("span", undefined, fmt(files)));
+      row.append(count);
+    }
     li.append(row);
     const ul = el("ul");
     ul.setAttribute("role", "group");

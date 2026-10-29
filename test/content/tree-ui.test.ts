@@ -57,6 +57,11 @@ describe("renderTree", () => {
     expect(chevPath(group).startsWith(CHEV_DOWN)).toBe(true);
     expect(group.querySelector(":scope > .fast-pr-tree-row > .fast-pr-tree-icon")).toBeNull();
     expect(group.querySelector(":scope > .fast-pr-tree-row > .fast-pr-tree-count")!.textContent).toBe("2");
+    expect(group.querySelector(":scope > .fast-pr-tree-row > .fast-pr-tree-count svg")).not.toBeNull();
+    const single = ul.querySelectorAll<HTMLElement>('[data-kind="group"]')[1];
+    expect(single.textContent).toContain("Ungrouped");
+    expect(single.querySelector(":scope > .fast-pr-tree-row > .fast-pr-tree-count")).toBeNull();
+    expect(single.querySelector(":scope > .fast-pr-tree-row > .fast-pr-tree-lines")).toBeNull();
     const dir = ul.querySelector<HTMLElement>('[data-kind="dir"]')!;
     const dirPath = () => dir.querySelector(":scope > .fast-pr-tree-row > .fast-pr-tree-icon path")!.getAttribute("d")!;
     expect(dirPath().startsWith("M.513")).toBe(true);
@@ -68,6 +73,20 @@ describe("renderTree", () => {
     const spacer = file.querySelector(":scope > .fast-pr-tree-row > .fast-pr-tree-chev")!;
     expect(spacer.children).toHaveLength(0);
     expect(file.querySelector(".fast-pr-tree-icon path")!.getAttribute("d")!.startsWith("M2 1.75C2")).toBe(true);
+  });
+
+  it("shows +added -deleted on files, summed for folders and groups", () => {
+    const files = [
+      { ...FILES[0], linesAdded: 10, linesDeleted: 2 },
+      { ...FILES[1], linesAdded: 1200, linesDeleted: 0 },
+    ];
+    const ul = renderTree(buildGroupTree(toOrdered(files)), () => {});
+    const lines = (sel: string) =>
+      [...ul.querySelector(`${sel} > .fast-pr-tree-row > .fast-pr-tree-lines`)!.children].map((c) => c.textContent);
+    expect(lines('[data-path="src/a/x.ts"]')).toEqual(["+10", "-2"]);
+    expect(lines('[data-path="src/a/y.ts"]')).toEqual(["+1,200"]);
+    expect(lines('[data-kind="dir"]')).toEqual(["+1,210", "-2"]);
+    expect(lines('[data-kind="group"]')).toEqual(["+1,210", "-2"]);
   });
 
   it("file icons follow changeType, like GitHub's tree", () => {
