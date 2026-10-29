@@ -185,8 +185,10 @@ describe("mountTreePanel", () => {
     expect(scroll.classList.contains("fast-pr-hidden")).toBe(true);
     const btn = panel.querySelector<HTMLButtonElement>(".fast-pr-tree-toggle")!;
     expect(btn.getAttribute("aria-pressed")).toBe("true");
+    expect(btn.dataset.tip).toContain("on");
     btn.click();
     expect(btn.getAttribute("aria-pressed")).toBe("false");
+    expect(btn.dataset.tip).toContain("off");
     expect(scroll.classList.contains("fast-pr-hidden")).toBe(false);
     expect(panel.querySelector<HTMLElement>("ul.fast-pr-tree")!.hidden).toBe(true);
     expect(localStorage.getItem("fast-pr:tree-mode")).toBe("original");

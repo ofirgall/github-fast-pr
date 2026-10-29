@@ -289,6 +289,7 @@ export function mountTreePanel(result: FastPrResult): Mounted {
   const toolbar = el("div", "fast-pr-tree-toolbar");
   const toggle = el("button", "fast-pr-tree-toggle");
   toggle.type = "button";
+  toggle.classList.add("fast-pr-tip");
   markUi(toggle);
   toggle.append(icon(P.zap));
   const tree = renderTree(nodes, (digest) => {
@@ -301,7 +302,8 @@ export function mountTreePanel(result: FastPrResult): Mounted {
 
   const apply = () => {
     toggle.setAttribute("aria-pressed", String(mode === "grouped"));
-    toggle.title = mode === "grouped" ? "Fast PR grouped tree: on (click for GitHub's tree)" : "Fast PR grouped tree: off (click to turn on)";
+    toggle.dataset.tip =
+      mode === "grouped" ? "Fast PR grouped tree: on (click for GitHub's tree)" : "Fast PR grouped tree: off (click to turn on)";
     toggle.setAttribute("aria-label", "Fast PR grouped tree");
     tree.hidden = mode !== "grouped";
     container?.classList.toggle("fast-pr-hidden", mode === "grouped");
