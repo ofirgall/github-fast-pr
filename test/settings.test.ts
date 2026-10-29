@@ -31,7 +31,10 @@ describe("mirrorPlan", () => {
 describe("cacheKeys", () => {
   it("selects only cached config keys", () => {
     expect(
-      cacheKeys(["fast-pr:cfg:o/r@s", "fast-pr:cfg-pr:o/r#1", "fast-pr:auto:o/r#1", "fast-pr:local-config"]),
-    ).toEqual(["fast-pr:cfg:o/r@s", "fast-pr:cfg-pr:o/r#1"]);
+      cacheKeys([
+        "fast-pr:cfg2:o/r@s", "fast-pr:cfg2-pr:o/r#1", "fast-pr:cfg:o/r@s", "fast-pr:cfg-pr:o/r#1",
+        "fast-pr:auto:o/r#1", "fast-pr:local-config",
+      ]),
+    ).toEqual(["fast-pr:cfg2:o/r@s", "fast-pr:cfg2-pr:o/r#1", "fast-pr:cfg:o/r@s", "fast-pr:cfg-pr:o/r#1"]);
   });
 });

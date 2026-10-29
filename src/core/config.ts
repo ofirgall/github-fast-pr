@@ -1,6 +1,21 @@
+import { compileGenerated, type GeneratedRule } from "./gitattributes";
+
 export interface GroupConfig { name: string; paths: string[]; autoViewed: boolean }
-export interface PrGroupsConfig { groups: GroupConfig[] }
-export interface CompiledGroup { name: string; autoViewed: boolean; index: number; regexes: RegExp[] }
+export interface PrGroupsConfig {
+  groups: GroupConfig[];
+  /** linguist-generated rules from the repo's .gitattributes; they form the Generated group. */
+  generated?: GeneratedRule[];
+}
+export interface CompiledGroup {
+  name: string;
+  autoViewed: boolean;
+  index: number;
+  regexes: RegExp[];
+  /** Replaces `regexes` when set (the Generated group). */
+  test?: (path: string) => boolean;
+}
+
+export const GENERATED_GROUP = "Generated";
 export type ParseResult =
   | { ok: true; config: PrGroupsConfig; hash: string }
   | { ok: false; error: string };
@@ -64,14 +79,31 @@ export function parseConfig(text: string): ParseResult {
     groups.push({ name, paths: [...(g.paths as string[])], autoViewed: g.autoViewed === true });
   }
   const config: PrGroupsConfig = { groups };
-  return { ok: true, config, hash: hashString(JSON.stringify(config)) };
+  return { ok: true, config, hash: configHash(config) };
+}
+
+export const configHash = (config: PrGroupsConfig): string => hashString(JSON.stringify(config));
+
+/** `config` plus the repo's generated rules (none: unchanged). */
+export function withGenerated(config: PrGroupsConfig, rules: GeneratedRule[] | undefined): PrGroupsConfig {
+  return rules?.some((r) => r.generated) ? { ...config, generated: rules } : config;
 }
 
 export function compileConfig(config: PrGroupsConfig): CompiledGroup[] {
-  return config.groups.map((g, index) => ({
+  const groups: CompiledGroup[] = config.groups.map((g, index) => ({
     name: g.name,
     autoViewed: g.autoViewed,
     index,
     regexes: g.paths.map((p) => new RegExp(p)),
   }));
+  if (config.generated?.some((r) => r.generated)) {
+    groups.push({
+      name: GENERATED_GROUP,
+      autoViewed: true,
+      index: groups.length,
+      regexes: [],
+      test: compileGenerated(config.generated),
+    });
+  }
+  return groups;
 }

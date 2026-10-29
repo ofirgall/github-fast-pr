@@ -28,8 +28,8 @@ describe("config cache", () => {
   it("writes both keys; sha lookup first, then pr", () => {
     const st = new MemStore();
     S.putConfig(id("s1"), ok(1, "one"), st);
-    expect(st.getItem("fast-pr:cfg:o/r@s1")).not.toBeNull();
-    expect(st.getItem("fast-pr:cfg-pr:o/r#7")).not.toBeNull();
+    expect(st.getItem("fast-pr:cfg2:o/r@s1")).not.toBeNull();
+    expect(st.getItem("fast-pr:cfg2-pr:o/r#7")).not.toBeNull();
     expect(S.getConfigBySha("o", "r", "s1", st)?.hash).toBe("one");
     expect(S.lookupConfig(id("s1"), st)?.hash).toBe("one");
     // new push: no sha entry, falls back to pr key
@@ -41,23 +41,23 @@ describe("config cache", () => {
   });
   it("ignores corrupt entries", () => {
     const st = new MemStore();
-    st.setItem("fast-pr:cfg:o/r@s1", "{bad");
-    st.setItem("fast-pr:cfg-pr:o/r#7", '{"status":"weird"}');
+    st.setItem("fast-pr:cfg2:o/r@s1", "{bad");
+    st.setItem("fast-pr:cfg2-pr:o/r#7", '{"status":"weird"}');
     expect(S.lookupConfig(id(), st)).toBeNull();
   });
   it("evicts oldest beyond 300 cfg keys", () => {
     const st = new MemStore();
     for (let i = 0; i < 160; i++) S.putConfig(id("sha" + i, 1000 + i), ok(i + 1), st);
-    const cfgKeys = [...st.m.keys()].filter((k) => k.startsWith("fast-pr:cfg:"));
+    const cfgKeys = [...st.m.keys()].filter((k) => k.startsWith("fast-pr:cfg2:"));
     expect(cfgKeys.length).toBeLessThanOrEqual(300);
-    // 160 sha keys, 160 pr keys cfg-pr (not counted by prefix "fast-pr:cfg:"); push more
+    // 160 sha keys, 160 pr keys cfg-pr (not counted by prefix "fast-pr:cfg2:"); push more
     for (let i = 160; i < 320; i++) S.putConfig(id("sha" + i, 1000 + i), ok(i + 1), st);
-    const keys = [...st.m.keys()].filter((k) => k.startsWith("fast-pr:cfg:"));
+    const keys = [...st.m.keys()].filter((k) => k.startsWith("fast-pr:cfg2:"));
     expect(keys.length).toBe(300);
-    expect(st.getItem("fast-pr:cfg:o/r@sha0")).toBeNull();
-    expect(st.getItem("fast-pr:cfg:o/r@sha19")).toBeNull();
-    expect(st.getItem("fast-pr:cfg:o/r@sha20")).not.toBeNull();
-    expect(st.getItem("fast-pr:cfg:o/r@sha319")).not.toBeNull();
+    expect(st.getItem("fast-pr:cfg2:o/r@sha0")).toBeNull();
+    expect(st.getItem("fast-pr:cfg2:o/r@sha19")).toBeNull();
+    expect(st.getItem("fast-pr:cfg2:o/r@sha20")).not.toBeNull();
+    expect(st.getItem("fast-pr:cfg2:o/r@sha319")).not.toBeNull();
   });
 });
 
@@ -65,12 +65,12 @@ describe("pr key eviction", () => {
   it("evicts oldest cfg-pr keys beyond 300", () => {
     const st = new MemStore();
     for (let i = 0; i < 320; i++) S.putConfig(id("sha" + i, 1000 + i), ok(i + 1), st);
-    const keys = [...st.m.keys()].filter((k) => k.startsWith("fast-pr:cfg-pr:"));
+    const keys = [...st.m.keys()].filter((k) => k.startsWith("fast-pr:cfg2-pr:"));
     expect(keys.length).toBe(300);
-    expect(st.getItem("fast-pr:cfg-pr:o/r#1000")).toBeNull();
-    expect(st.getItem("fast-pr:cfg-pr:o/r#1019")).toBeNull();
-    expect(st.getItem("fast-pr:cfg-pr:o/r#1020")).not.toBeNull();
-    expect(st.getItem("fast-pr:cfg-pr:o/r#1319")).not.toBeNull();
+    expect(st.getItem("fast-pr:cfg2-pr:o/r#1000")).toBeNull();
+    expect(st.getItem("fast-pr:cfg2-pr:o/r#1019")).toBeNull();
+    expect(st.getItem("fast-pr:cfg2-pr:o/r#1020")).not.toBeNull();
+    expect(st.getItem("fast-pr:cfg2-pr:o/r#1319")).not.toBeNull();
   });
 });
 

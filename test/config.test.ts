@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { parseConfig, compileConfig, CONFIG_PATH } from "../src/core/config";
+import { parseConfig, compileConfig, withGenerated, CONFIG_PATH, GENERATED_GROUP } from "../src/core/config";
+import { assignGroup } from "../src/core/grouping";
 
 describe("parseConfig", () => {
   it("parses a valid config and defaults autoViewed to false", () => {
@@ -61,6 +62,23 @@ describe("compileConfig", () => {
     expect(c[0].regexes).toHaveLength(2);
     expect(c[0].regexes[0].flags).toBe("");
     expect(c[1].autoViewed).toBe(true);
+  });
+  it("appends an auto-viewed Generated group from .gitattributes rules, which wins over plain groups", () => {
+    const cfg = withGenerated(
+      { groups: [{ name: "Src", paths: ["^src/"], autoViewed: false }] },
+      [{ pattern: "*.pb.go", generated: true }, { pattern: "keep.pb.go", generated: false }],
+    );
+    const c = compileConfig(cfg);
+    expect(c.map((g) => [g.name, g.index, g.autoViewed])).toEqual([["Src", 0, false], [GENERATED_GROUP, 1, true]]);
+    expect(assignGroup("src/a.pb.go", c)?.name).toBe(GENERATED_GROUP);
+    expect(assignGroup("src/keep.pb.go", c)?.name).toBe("Src");
+    expect(assignGroup("other/x.go", c)).toBeNull();
+  });
+  it("adds no Generated group without a generating rule", () => {
+    const base = { groups: [] };
+    expect(withGenerated(base, [{ pattern: "a", generated: false }])).toBe(base);
+    expect(withGenerated(base, undefined)).toBe(base);
+    expect(compileConfig({ groups: [], generated: [{ pattern: "a", generated: false }] })).toEqual([]);
   });
   it("exports config path", () => {
     expect(CONFIG_PATH).toBe(".github/pr-groups.json");

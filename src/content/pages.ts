@@ -1,8 +1,8 @@
 import { compileConfig } from "../core/config";
 import { computeDiffstat, tallyDiffstat } from "../core/diffstat";
 import { findChangesRoute, prIdentity, type PrIdentity } from "../core/route";
-import { getConfigByPr, getConfigBySha, lookupConfig, type CachedConfig } from "../core/storage";
-import { localConfig } from "../shared/config-source";
+import { getConfigByPr, getConfigBySha, type CachedConfig } from "../core/storage";
+import { effectiveConfig, localConfig } from "../shared/config-source";
 import { RESULT_EVENT, type FastPrFile } from "../shared/types";
 import { mountDecorations } from "./decorations";
 import { createDiffstatController } from "./diffstat-ui";
@@ -53,16 +53,14 @@ export function startChangesPage(page: PageInfo): Teardown {
 
   const checkConfig = async (result: NonNullable<ReturnType<typeof parseResult>>) => {
     const id = result.identity;
-    if (result.devConfig) {
-      logDevInvalid(id, localConfig());
-      return;
-    }
+    if (result.devConfig) logDevInvalid(id, localConfig());
     if (getConfigBySha(id.owner, id.repo, id.headSha)) return;
     const k = `${id.owner}/${id.repo}@${id.headSha}`;
     if (checkedShas.has(k)) return;
     checkedShas.add(k);
     try {
-      const next = await resolveConfig(id);
+      const repo = await resolveConfig(id);
+      const next = effectiveConfig(id)?.cfg ?? repo;
       debug("config resolved", next.status, next.hash);
       if (disposed || !shouldReload(result, next)) return;
       const guard = reloadGuardKey(location.pathname, id.headSha, next);
@@ -158,17 +156,14 @@ export function startConversationPage(page: PageInfo): Teardown {
         return;
       }
       const summaries = found.route.diffSummaries;
-      const dev = localConfig();
-      if (dev) {
-        logDevInvalid(id, dev);
-        show(dev, summaries);
-        return;
-      }
-      const cached = lookupConfig(id);
+      const eff = effectiveConfig(id);
+      if (eff?.dev) logDevInvalid(id, eff.cfg);
+      const cached = eff?.cfg ?? null;
       show(cached, summaries);
       if (!getConfigBySha(id.owner, id.repo, id.headSha)) {
-        const fresh = await resolveConfig(id);
+        const repo = await resolveConfig(id);
         if (disposed) return;
+        const fresh = effectiveConfig(id)?.cfg ?? repo;
         if (!cached || cached.hash !== fresh.hash || cached.status !== fresh.status) show(fresh, summaries);
       }
     } catch (e) {

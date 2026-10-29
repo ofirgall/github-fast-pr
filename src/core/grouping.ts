@@ -3,7 +3,7 @@ import type { CompiledGroup } from "./config";
 export const UNGROUPED = "Ungrouped";
 
 function matches(path: string, g: CompiledGroup): boolean {
-  return g.regexes.some((r) => r.test(path));
+  return g.test ? g.test(path) : g.regexes.some((r) => r.test(path));
 }
 
 export function assignGroup(path: string, groups: CompiledGroup[]): CompiledGroup | null {

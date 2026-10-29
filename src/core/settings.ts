@@ -12,7 +12,8 @@ export const DEBUG_KEY = "fast-pr:debug";
 export const LOCAL_CONFIG_KEY = "fast-pr:local-config";
 // Per-repo override keys from earlier builds; always removed.
 const LEGACY_PREFIX = "fast-pr:dev-config:";
-const CACHE_PREFIXES = ["fast-pr:cfg:", "fast-pr:cfg-pr:"];
+// Current config cache prefixes, then those of builds before .gitattributes support.
+const CACHE_PREFIXES = ["fast-pr:cfg2:", "fast-pr:cfg2-pr:", "fast-pr:cfg:", "fast-pr:cfg-pr:"];
 
 export function normalizeSettings(raw: unknown): Settings {
   const out: Settings = { debug: false, localConfig: "" };

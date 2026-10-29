@@ -1,4 +1,5 @@
-import { CONFIG_PATH, hashString, parseConfig } from "../core/config";
+import { CONFIG_PATH, configHash, hashString, parseConfig, withGenerated } from "../core/config";
+import { GITATTRIBUTES_PATH, parseGenerated } from "../core/gitattributes";
 import type { PrIdentity } from "../core/route";
 import { getConfigBySha, putConfig, type CachedConfig } from "../core/storage";
 import type { FastPrResult } from "../shared/types";
@@ -26,31 +27,42 @@ export function defaultDeps(): LoaderDeps {
 const encodePath = (s: string) => s.split("/").map(encodeURIComponent).join("/");
 
 /** Text of the file, or null on 404. Throws on any other failure. */
-async function fetchRaw(deps: LoaderDeps, id: PrIdentity, ref: string): Promise<string | null> {
-  const url = `/${id.owner}/${id.repo}/raw/${ref}/${CONFIG_PATH}`;
+async function fetchRaw(deps: LoaderDeps, id: PrIdentity, ref: string, path: string): Promise<string | null> {
+  const url = `/${id.owner}/${id.repo}/raw/${ref}/${path}`;
   const res = await deps.fetch(url, { credentials: "same-origin" });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
   return res.text();
 }
 
+/** The file at the head commit, else on the base branch; null when neither has it. */
+async function fetchAtHeadOrBase(deps: LoaderDeps, id: PrIdentity, path: string): Promise<string | null> {
+  return (await fetchRaw(deps, id, id.headSha, path)) ?? fetchRaw(deps, id, encodePath(id.baseBranch), path);
+}
+
 /**
  * Resolve the config for a head commit: cached by SHA (final), else head SHA,
- * else base branch. Writes the cache. Throws on transport errors (nothing cached).
+ * else base branch. The root .gitattributes' linguist-generated rules are added as
+ * the Generated group, even when there is no pr-groups config. Writes the cache.
+ * Throws on transport errors (nothing cached).
  */
 export async function resolveConfig(id: PrIdentity, deps: LoaderDeps = defaultDeps()): Promise<CachedConfig> {
   const hit = deps.get(id);
   if (hit) return hit;
-  let text = await fetchRaw(deps, id, id.headSha);
-  if (text === null) text = await fetchRaw(deps, id, encodePath(id.baseBranch));
+  const text = await fetchAtHeadOrBase(deps, id, CONFIG_PATH);
+  const attrs = await fetchAtHeadOrBase(deps, id, GITATTRIBUTES_PATH);
+  const rules = attrs === null ? undefined : parseGenerated(attrs);
   const at = deps.now();
   let value: CachedConfig;
   if (text === null) {
-    value = { status: "none", hash: "none", at };
+    const config = withGenerated({ groups: [] }, rules);
+    value = config.generated ? { status: "ok", config, hash: configHash(config), at } : { status: "none", hash: "none", at };
   } else {
     const r = parseConfig(text);
-    if (r.ok) value = { status: "ok", config: r.config, hash: r.hash, at };
-    else {
+    if (r.ok) {
+      const config = withGenerated(r.config, rules);
+      value = { status: "ok", config, hash: configHash(config), at };
+    } else {
       value = { status: "invalid", hash: hashString(text), at, error: r.error };
       deps.logError(`[fast-pr] ${CONFIG_PATH}: ${r.error}`);
     }

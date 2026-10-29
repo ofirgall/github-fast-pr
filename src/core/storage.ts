@@ -7,8 +7,8 @@ export type CachedConfig =
   | { status: "ok"; config: PrGroupsConfig; hash: string; at: number }
   | { status: "none" | "invalid"; hash: string; at: number; error?: string };
 
-const CFG_PREFIX = "fast-pr:cfg:";
-const PR_PREFIX = "fast-pr:cfg-pr:";
+const CFG_PREFIX = "fast-pr:cfg2:";
+const PR_PREFIX = "fast-pr:cfg2-pr:";
 const MAX_CFG = 300;
 
 function defaultStore(): Store | undefined {
