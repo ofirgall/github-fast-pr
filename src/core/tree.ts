@@ -1,4 +1,4 @@
-import type { OrderedFile } from "./grouping";
+import type { GroupRef } from "./diffstat";
 import { UNGROUPED } from "./grouping";
 
 export type TreeNode =
@@ -30,7 +30,7 @@ function mergeDirs(nodes: TreeNode[]): TreeNode[] {
 export function buildGroupTree<
   T extends { path: string; pathDigest: string; changeType?: string | null; linesAdded?: number; linesDeleted?: number },
 >(
-  ordered: OrderedFile<T>[],
+  ordered: { file: T; group: GroupRef | null }[],
 ): TreeNode[] {
   const result: TreeNode[] = [];
   const groups = new Map<string, Extract<TreeNode, { kind: "group" }>>();

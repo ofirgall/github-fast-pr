@@ -1,4 +1,4 @@
-import type { OrderedFile } from "../core/grouping";
+import type { GroupRef } from "../core/diffstat";
 import { buildGroupTree, type TreeNode } from "../core/tree";
 import { getTreeMode, setTreeMode, type TreeMode } from "../core/storage";
 import type { FastPrFile, FastPrResult } from "../shared/types";
@@ -8,9 +8,10 @@ import { sendViewedBatch } from "./sender";
 import { openTreeMenu, type MenuItem } from "./tree-menu";
 import type { ViewedState } from "./viewed-state";
 
-export function toOrdered(
-  files: FastPrFile[],
-): OrderedFile<{ path: string; pathDigest: string; changeType: string | null; linesAdded: number; linesDeleted: number }>[] {
+export function toOrdered(files: FastPrFile[]): {
+  file: { path: string; pathDigest: string; changeType: string | null; linesAdded: number; linesDeleted: number };
+  group: GroupRef | null;
+}[] {
   return files.map((f) => ({
     file: {
       path: f.path,
@@ -22,7 +23,7 @@ export function toOrdered(
     group:
       f.group === null
         ? null
-        : { name: f.group, autoViewed: f.autoViewed, index: f.groupIndex ?? 0, regexes: [] },
+        : { name: f.group, autoViewed: f.autoViewed, index: f.groupIndex ?? 0 },
   }));
 }
 

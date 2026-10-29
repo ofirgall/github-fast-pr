@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { parseConfig, compileConfig, withGenerated, CONFIG_PATH, GENERATED_GROUP } from "../src/core/config";
+import {
+  parseConfig, compileConfig, withGenerated, ungroupedViewPriority, CONFIG_PATH, GENERATED_GROUP,
+} from "../src/core/config";
 import { assignGroup } from "../src/core/grouping";
 
 describe("parseConfig", () => {
@@ -47,6 +49,42 @@ describe("parseConfig", () => {
       expect(r.error).toContain("Broken");
       expect(r.error).toContain("(");
     }
+  });
+  it("reads priorities on groups and the top-level generated and ungrouped objects", () => {
+    const r = parseConfig(JSON.stringify({
+      groups: [{ name: "A", paths: ["a"], matchPriority: 3, viewPriority: -1.5 }, { name: "B", paths: ["b"] }],
+      generated: { matchPriority: 0, viewPriority: 4 },
+      ungrouped: { viewPriority: 2 },
+    }));
+    expect(r).toMatchObject({ ok: true, config: {
+      groups: [{ name: "A", matchPriority: 3, viewPriority: -1.5 }, { name: "B" }],
+      generatedPriority: { matchPriority: 0, viewPriority: 4 },
+      ungrouped: { viewPriority: 2 },
+    } });
+    if (!r.ok) throw new Error("x");
+    expect(r.config.groups[1]).not.toHaveProperty("matchPriority");
+    expect(ungroupedViewPriority(r.config)).toBe(2);
+    const c = compileConfig(withGenerated(r.config, [{ pattern: "*.g", generated: true }]));
+    expect(c.map((g) => [g.name, g.matchPriority, g.viewPriority])).toEqual([
+      ["A", 3, -1.5], ["B", 0, 0], [GENERATED_GROUP, 0, 4],
+    ]);
+  });
+  it("defaults priorities to the original order rules", () => {
+    const r = parseConfig('{"groups":[{"name":"A","paths":["a"]},{"name":"B","paths":["b"],"autoViewed":true}]}');
+    if (!r.ok) throw new Error("x");
+    expect(r.config).toEqual({ groups: [
+      { name: "A", paths: ["a"], autoViewed: false }, { name: "B", paths: ["b"], autoViewed: true },
+    ] });
+    expect(compileConfig(r.config).map((g) => [g.matchPriority, g.viewPriority])).toEqual([[0, 0], [1, -2]]);
+    expect(ungroupedViewPriority(r.config)).toBe(-1);
+  });
+  it.each([
+    ['{"groups":[{"name":"A","paths":["a"],"matchPriority":"1"}]}', 'Group "A": "matchPriority" must be a number'],
+    ['{"groups":[{"name":"A","paths":["a"],"viewPriority":null}]}', 'Group "A": "viewPriority" must be a number'],
+    ['{"groups":[],"ungrouped":3}', '"ungrouped" must be an object'],
+    ['{"groups":[],"generated":{"viewPriority":true}}', '"generated": "viewPriority" must be a number'],
+  ])("rejects bad priorities: %s", (text, error) => {
+    expect(parseConfig(text)).toEqual({ ok: false, error });
   });
   it("accepts an empty groups array", () => {
     expect(parseConfig('{"groups":[]}').ok).toBe(true);

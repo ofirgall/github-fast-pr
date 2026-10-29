@@ -1,4 +1,4 @@
-import { compileConfig } from "../core/config";
+import { compileConfig, ungroupedViewPriority } from "../core/config";
 import { computeDiffstat, tallyDiffstat } from "../core/diffstat";
 import { findChangesRoute, prIdentity, type PrIdentity } from "../core/route";
 import { getConfigByPr, getConfigBySha, type CachedConfig } from "../core/storage";
@@ -139,7 +139,11 @@ export function startConversationPage(page: PageInfo): Teardown {
   const ctl = createDiffstatController(() => refetch.call());
 
   const show = (cfg: CachedConfig | null, summaries: Parameters<typeof computeDiffstat>[0]) => {
-    ctl.set(cfg && cfg.status === "ok" ? computeDiffstat(summaries, compileConfig(cfg.config)) : null);
+    ctl.set(
+      cfg && cfg.status === "ok"
+        ? computeDiffstat(summaries, compileConfig(cfg.config), ungroupedViewPriority(cfg.config))
+        : null,
+    );
   };
 
   async function refresh() {

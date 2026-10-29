@@ -1,4 +1,4 @@
-import { compileConfig } from "../core/config";
+import { compileConfig, ungroupedViewPriority } from "../core/config";
 import { orderFiles } from "../core/grouping";
 import { findChangesRoute, isFullDiff, prIdentity, type DiffSummary, type PrIdentity } from "../core/route";
 import type { CachedConfig } from "../core/storage";
@@ -42,7 +42,7 @@ export function patchChangesData(
   let result: FastPrResult;
   if (looked && looked.cfg.status === "ok") {
     const groups = compileConfig(looked.cfg.config);
-    const ordered = orderFiles(summaries, groups);
+    const ordered = orderFiles(summaries, groups, ungroupedViewPriority(looked.cfg.config));
     const already = full ? new Set(env.autoPaths(id)) : new Set<string>();
     const toMark: typeof summaries = [];
     const files: FastPrFile[] = ordered.map(({ file, group }) => {

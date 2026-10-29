@@ -21,8 +21,8 @@ export interface Diffstat {
 /** The group a file landed in; only what the counts need. */
 export interface GroupRef { index: number; name: string; autoViewed: boolean }
 
-export function computeDiffstat(files: DiffFile[], groups: CompiledGroup[]): Diffstat {
-  return tallyDiffstat(orderFiles(files, groups));
+export function computeDiffstat(files: DiffFile[], groups: CompiledGroup[], ungroupedView?: number): Diffstat {
+  return tallyDiffstat(orderFiles(files, groups, ungroupedView));
 }
 
 /** Counts for files already in group order (as the changes page hook publishes them). */

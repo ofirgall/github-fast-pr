@@ -36,18 +36,29 @@ Read from the PR head commit, falling back to the base branch.
   "groups": [
     { "name": "Backend", "paths": ["^server/", "\\.go$"] },
     { "name": "Frontend", "paths": ["^web/"] },
-    { "name": "Generated", "paths": ["\\.gen\\.", "package-lock\\.json$"], "autoViewed": true }
-  ]
+    { "name": "Lockfiles", "paths": ["package-lock\\.json$"], "autoViewed": true },
+    { "name": "Tests", "paths": ["_test\\.go$"], "matchPriority": 2, "viewPriority": 1 }
+  ],
+  "generated": { "viewPriority": -3 },
+  "ungrouped": { "viewPriority": 5 }
 }
 ```
 
-- `groups`: array of `{ name, paths, autoViewed? }`. `name` is a non-empty string, `paths` a non-empty array of regex strings, `autoViewed` an optional boolean (default `false`).
-- Regexes are JavaScript regexes without flags: unanchored and case-sensitive. Use `^` and `$` to anchor. An invalid config (bad JSON, missing fields, bad regex) is ignored and one `[fast-pr]` error is logged.
+- `groups`: array of `{ name, paths, autoViewed?, matchPriority?, viewPriority? }`. `name` is a non-empty string, `paths` a non-empty array of regex strings, `autoViewed` an optional boolean (default `false`), and the priorities optional numbers.
+- `generated`: optional `{ matchPriority?, viewPriority? }` for the Generated group made from `.gitattributes` (below).
+- `ungrouped`: optional `{ viewPriority? }` for the Ungrouped files.
+- Regexes are JavaScript regexes without flags: unanchored and case-sensitive. Use `^` and `$` to anchor. An invalid config (bad JSON, missing fields, bad regex, non-number priority) is ignored and one `[fast-pr]` error is logged.
+
+### `.gitattributes`
+
+Files marked `linguist-generated` in the root `.gitattributes` (head commit, falling back to the base branch) go to an auto-viewed "Generated" group, also in repos without `pr-groups.json`. Patterns follow git's rules, and the last matching line wins.
 
 ### Assignment and order
 
-- A file goes to the first matching auto-viewed group in config order; otherwise to the first matching group in config order; otherwise it is "Ungrouped".
-- Files are ordered: normal groups in config order, then Ungrouped, then auto-viewed groups. Input order is kept within a group.
+Higher priority goes first; ties keep config order (Generated last).
+
+- `matchPriority` picks the group of a file that matches several: the highest one wins. Default: `1` for auto-viewed groups, `0` otherwise. A file matching nothing is "Ungrouped".
+- `viewPriority` orders the groups on the page. Default: `0` for normal groups, `-1` for Ungrouped, `-2` for auto-viewed groups. At equal priority Ungrouped comes after the groups. Input order is kept within a group.
 - Auto-viewed files are marked viewed (saved to GitHub) on the full diff only, never for files you un-viewed at the current head commit.
 
 ## Extension menu

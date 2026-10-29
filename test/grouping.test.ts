@@ -25,6 +25,23 @@ describe("assignGroup", () => {
   it("first auto group wins among autos", () => {
     expect(assignGroup("docs/x.gen.md", groups)?.name).toBe("Docs");
   });
+  it("highest matchPriority wins, over auto-viewed too; ties keep config order", () => {
+    const g = compileConfig({ groups: [
+      { name: "Auto", paths: ["src"], autoViewed: true },
+      { name: "Low", paths: ["src"], autoViewed: false },
+      { name: "High", paths: ["src/a"], autoViewed: false, matchPriority: 2 },
+      { name: "High2", paths: ["src/a"], autoViewed: false, matchPriority: 2 },
+    ] });
+    expect(assignGroup("src/a.ts", g)?.name).toBe("High");
+    expect(assignGroup("src/b.ts", g)?.name).toBe("Auto");
+  });
+  it("a lowered auto-viewed group loses to a normal one", () => {
+    const g = compileConfig({ groups: [
+      { name: "Auto", paths: ["src"], autoViewed: true, matchPriority: -1 },
+      { name: "Normal", paths: ["src"], autoViewed: false },
+    ] });
+    expect(assignGroup("src/a.ts", g)?.name).toBe("Normal");
+  });
   it("returns null when nothing matches", () => {
     expect(assignGroup("other/file.txt", groups)).toBeNull();
   });
@@ -51,6 +68,20 @@ describe("orderFiles", () => {
   it("orders multiple auto groups in config order", () => {
     const files = ["x.gen.ts", "a.md"].map((path) => ({ path }));
     expect(orderFiles(files, groups).map((o) => o.group?.name)).toEqual(["Docs", "Generated"]);
+  });
+  it("orders by viewPriority, highest first, with Ungrouped placed by its own priority", () => {
+    const g = compileConfig({
+      groups: [
+        { name: "A", paths: ["^a/"], autoViewed: false },
+        { name: "B", paths: ["^b/"], autoViewed: false, viewPriority: 5 },
+        { name: "Auto", paths: ["^z/"], autoViewed: true, viewPriority: 1 },
+      ],
+    });
+    const files = ["a/1", "x", "z/1", "b/1"].map((path) => ({ path }));
+    expect(orderFiles(files, g).map((o) => o.group?.name ?? "-")).toEqual(["B", "Auto", "A", "-"]);
+    expect(orderFiles(files, g, 10).map((o) => o.group?.name ?? "-")).toEqual(["-", "B", "Auto", "A"]);
+    // At an equal priority Ungrouped comes after the groups.
+    expect(orderFiles(files, g, 0).map((o) => o.group?.name ?? "-")).toEqual(["B", "Auto", "A", "-"]);
   });
   it("with no groups everything is ungrouped in input order", () => {
     const files = ["b", "a"].map((path) => ({ path }));
