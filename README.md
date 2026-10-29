@@ -18,6 +18,7 @@ Repos without a config or `linguist-generated` files are left untouched.
 Get the latest zip from [Releases](https://github.com/ofirgall/github-fast-pr/releases/latest), or from the command line:
 
 ```sh
+mkdir -p ~/chrome-extensions/github-fast-pr
 curl -fsSL https://github.com/ofirgall/github-fast-pr/releases/latest/download/github-fast-pr.zip -o /tmp/github-fast-pr.zip
 unzip -o /tmp/github-fast-pr.zip -d ~/chrome-extensions/github-fast-pr
 ```
@@ -34,7 +35,7 @@ Chrome may show a banner about developer-mode extensions on startup. That is exp
 
 **Update**: unpacked extensions don't update on their own.
 
-1. Run the same two commands again. They unzip over the same folder.
+1. Run the same commands again. They unzip over the same folder.
 2. Click the reload icon on the Fast PR card in `chrome://extensions`.
 3. Refresh open GitHub tabs.
 
