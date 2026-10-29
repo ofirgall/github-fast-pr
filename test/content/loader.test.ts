@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { configRefs, resolveConfig, shouldReload, reloadGuardKey, type LoaderDeps } from "../../src/content/loader";
+import { resolveConfig, shouldReload, reloadGuardKey, type LoaderDeps } from "../../src/content/loader";
 import type { CachedConfig } from "../../src/core/storage";
 import type { PrIdentity } from "../../src/core/route";
 
@@ -23,71 +23,54 @@ function mk(map: Record<string, { status: number; body?: string }>, cached: Cach
   };
   return { deps, urls, put, logError };
 }
-const HEAD = "/o/r/raw/abc/.github/pr-groups.json";
-const BASE = "/o/r/raw/release/1.x/.github/pr-groups.json";
-const cfg = (ref: string) => `/o/r/raw/${ref}/.github/pr-groups.json`;
-const attr = (ref: string) => `/o/r/raw/${ref}/.gitattributes`;
-const HEAD_C = `${HEAD}c`;
-const BASE_C = `${BASE}c`;
-const ATTR_HEAD = "/o/r/raw/abc/.gitattributes";
-const ATTR_BASE = "/o/r/raw/release/1.x/.gitattributes";
+const MAIN = "/o/r/raw/main/.github/pr-groups.json";
+const MASTER = "/o/r/raw/master/.github/pr-groups.json";
+const MAIN_C = `${MAIN}c`;
+const MASTER_C = `${MASTER}c`;
+const ATTR_MAIN = "/o/r/raw/main/.gitattributes";
+const ATTR_MASTER = "/o/r/raw/master/.gitattributes";
 const ATTRS = "*.pb.go linguist-generated\n*.md text\n";
 
 describe("resolveConfig", () => {
-  it("uses head 200", async () => {
-    const t = mk({ [HEAD]: { status: 200, body: GOOD } });
+  it("reads main only, not the PR's head or base", async () => {
+    const t = mk({ [MAIN]: { status: 200, body: GOOD } });
     const c = await resolveConfig(id, t.deps);
     expect(c.status).toBe("ok");
-    expect(t.urls).toEqual([HEAD, ATTR_HEAD, ATTR_BASE, attr("main"), attr("master")]);
+    expect(t.urls).toEqual([MAIN, ATTR_MAIN, ATTR_MASTER]);
     expect(t.put).toHaveBeenCalledWith(id, c);
   });
-  it("falls back to main, then master, after the base branch", async () => {
-    const t = mk({ [cfg("master")]: { status: 200, body: GOOD } });
+  it("falls back to master", async () => {
+    const t = mk({ [MASTER]: { status: 200, body: GOOD } });
     expect((await resolveConfig(id, t.deps)).status).toBe("ok");
-    expect(t.urls.slice(0, 8)).toEqual([HEAD, HEAD_C, BASE, BASE_C, cfg("main"), `${cfg("main")}c`, cfg("master"), ATTR_HEAD]);
-    const m = mk({ [cfg("main")]: { status: 200, body: GOOD }, [cfg("master")]: { status: 200, body: "{" } });
-    expect((await resolveConfig(id, m.deps)).status).toBe("ok");
-  });
-  it("tries a branch once when the base is main or master", () => {
-    expect(configRefs({ ...id, baseBranch: "main" })).toEqual(["abc", "main", "master"]);
-    expect(configRefs({ ...id, baseBranch: "master" })).toEqual(["abc", "master", "main"]);
-    expect(configRefs(id)).toEqual(["abc", "release/1.x", "main", "master"]);
-  });
-  it("falls back to base on head 404, encoding segments", async () => {
-    const t = mk({ [HEAD]: { status: 404 }, [BASE]: { status: 200, body: GOOD } });
-    expect((await resolveConfig(id, t.deps)).status).toBe("ok");
-    expect(t.urls.slice(0, 3)).toEqual([HEAD, HEAD_C, BASE]);
-    const t2 = mk({});
-    await resolveConfig({ ...id, baseBranch: "feat/a b#c" }, t2.deps);
-    expect(t2.urls[2]).toBe("/o/r/raw/feat/a%20b%23c/.github/pr-groups.json");
+    expect(t.urls.slice(0, 3)).toEqual([MAIN, MAIN_C, MASTER]);
   });
   it("reads pr-groups.jsonc when there is no pr-groups.json at that ref", async () => {
-    const t = mk({ [HEAD_C]: { status: 200, body: '{"groups": [], // c\n}' }, [BASE]: { status: 200, body: GOOD } });
+    const t = mk({ [MAIN_C]: { status: 200, body: '{"groups": [], // c\n}' }, [MASTER]: { status: 200, body: GOOD } });
     expect(await resolveConfig(id, t.deps)).toMatchObject({ status: "ok", config: { groups: [] } });
-    expect(t.urls.slice(0, 2)).toEqual([HEAD, HEAD_C]);
+    expect(t.urls.slice(0, 2)).toEqual([MAIN, MAIN_C]);
   });
   it("prefers pr-groups.json and names the file it read in errors", async () => {
-    const both = mk({ [HEAD]: { status: 200, body: GOOD }, [HEAD_C]: { status: 200, body: "{}" } });
+    const both = mk({ [MAIN]: { status: 200, body: GOOD }, [MAIN_C]: { status: 200, body: "{}" } });
     expect((await resolveConfig(id, both.deps)).status).toBe("ok");
-    const bad = mk({ [BASE_C]: { status: 200, body: "{" } });
+    const bad = mk({ [MASTER_C]: { status: 200, body: "{" } });
     expect((await resolveConfig(id, bad.deps)).status).toBe("invalid");
     expect(bad.logError.mock.calls[0][0]).toMatch(/^\[fast-pr\] \.github\/pr-groups\.jsonc: /);
   });
   it("adds .gitattributes generated rules to the config, changing its hash", async () => {
-    const plain = await resolveConfig(id, mk({ [HEAD]: { status: 200, body: GOOD } }).deps);
-    const t = mk({ [HEAD]: { status: 200, body: GOOD }, [ATTR_HEAD]: { status: 200, body: ATTRS } });
+    const plain = await resolveConfig(id, mk({ [MAIN]: { status: 200, body: GOOD } }).deps);
+    const t = mk({ [MAIN]: { status: 200, body: GOOD }, [ATTR_MAIN]: { status: 200, body: ATTRS } });
     const c = await resolveConfig(id, t.deps);
-    expect(t.urls).toEqual([HEAD, ATTR_HEAD]);
+    expect(t.urls).toEqual([MAIN, ATTR_MAIN]);
     expect(c).toMatchObject({ status: "ok", config: { generated: [{ pattern: "*.pb.go", generated: true }] } });
     expect(c.hash).not.toBe(plain.hash);
   });
   it("a repo with only .gitattributes rules gets an ok config with no other groups", async () => {
-    const t = mk({ [ATTR_BASE]: { status: 200, body: ATTRS } });
+    const t = mk({ [ATTR_MASTER]: { status: 200, body: ATTRS } });
     const c = await resolveConfig(id, t.deps);
     expect(c).toMatchObject({ status: "ok", config: { groups: [], generated: [{ pattern: "*.pb.go", generated: true }] } });
   });
   it(".gitattributes without linguist-generated changes nothing", async () => {
-    const t = mk({ [ATTR_HEAD]: { status: 200, body: "*.md text\n" } });
+    const t = mk({ [ATTR_MAIN]: { status: 200, body: "*.md text\n" } });
     expect(await resolveConfig(id, t.deps)).toMatchObject({ status: "none" });
   });
   it("both 404 -> none, cached", async () => {
@@ -98,7 +81,7 @@ describe("resolveConfig", () => {
     expect(t.logError).not.toHaveBeenCalled();
   });
   it("invalid JSON -> invalid, logged once", async () => {
-    const t = mk({ [HEAD]: { status: 200, body: "{nope" } });
+    const t = mk({ [MAIN]: { status: 200, body: "{nope" } });
     const c = await resolveConfig(id, t.deps);
     expect(c.status).toBe("invalid");
     expect(t.logError).toHaveBeenCalledTimes(1);
@@ -112,7 +95,7 @@ describe("resolveConfig", () => {
     expect(t.logError).not.toHaveBeenCalled();
   });
   it("server error throws and caches nothing", async () => {
-    const t = mk({ [HEAD]: { status: 500 } });
+    const t = mk({ [MAIN]: { status: 500 } });
     await expect(resolveConfig(id, t.deps)).rejects.toThrow();
     expect(t.put).not.toHaveBeenCalled();
   });

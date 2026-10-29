@@ -22,8 +22,10 @@ export const LOCAL_CONFIG_KEY = "fast-pr:local-config";
 // Per-repo override keys from earlier builds; always removed.
 const LEGACY_PREFIX = "fast-pr:dev-config:";
 // Config caches of earlier builds, whose results may miss later lookup rules; always removed.
-const LEGACY_CACHE_PREFIXES = ["fast-pr:cfg:", "fast-pr:cfg-pr:", "fast-pr:cfg2:", "fast-pr:cfg2-pr:"];
-const CACHE_PREFIXES = ["fast-pr:cfg3:", "fast-pr:cfg3-pr:", ...LEGACY_CACHE_PREFIXES];
+const LEGACY_CACHE_PREFIXES = [
+  "fast-pr:cfg:", "fast-pr:cfg-pr:", "fast-pr:cfg2:", "fast-pr:cfg2-pr:", "fast-pr:cfg3:", "fast-pr:cfg3-pr:",
+];
+const CACHE_PREFIXES = ["fast-pr:cfg4:", "fast-pr:cfg4-pr:", ...LEGACY_CACHE_PREFIXES];
 
 export function normalizeSettings(raw: unknown): Settings {
   const out: Settings = { ...DEFAULT_SETTINGS };

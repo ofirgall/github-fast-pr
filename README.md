@@ -45,9 +45,9 @@ Always use the same folder. The extension's ID comes from its path, and the menu
 
 ## Config: `.github/pr-groups.json`
 
-Read from the first of these that has it: the PR head commit, the PR's base branch, `main`, `master`.
+Read from the repo's `main` branch, or `master` when `main` doesn't have it. A PR's own branches are not used. The result is cached per PR commit, so a config change on `main` reaches a PR you already opened after its next push, or after Clear cached configs in the menu.
 
-`.github/pr-groups.jsonc` is read when there is no `pr-groups.json` at that commit or branch. Both files are JSONC, so `//` and `/* */` comments and trailing commas are allowed.
+`.github/pr-groups.jsonc` is read when there is no `pr-groups.json` on that branch. Both files are JSONC, so `//` and `/* */` comments and trailing commas are allowed.
 
 ```jsonc
 {
@@ -77,7 +77,7 @@ Read from the first of these that has it: the PR head commit, the PR's base bran
 
 Files marked `linguist-generated` in the root `.gitattributes` go to an auto-viewed "Generated" group. This works in repos without `pr-groups.json` too.
 
-The file is looked up the same way as the config: head commit, base branch, `main`, `master`. Patterns follow git's rules, and the last matching line wins.
+The file is read the same way as the config: from `main`, else `master`. Patterns follow git's rules, and the last matching line wins.
 
 ### Assignment and order
 

@@ -24,8 +24,6 @@ export function defaultDeps(): LoaderDeps {
   };
 }
 
-const encodePath = (s: string) => s.split("/").map(encodeURIComponent).join("/");
-
 /** Text of the file, or null on 404. Throws on any other failure. */
 async function fetchRaw(deps: LoaderDeps, id: PrIdentity, ref: string, path: string): Promise<string | null> {
   const url = `/${id.owner}/${id.repo}/raw/${ref}/${path}`;
@@ -35,21 +33,16 @@ async function fetchRaw(deps: LoaderDeps, id: PrIdentity, ref: string, path: str
   return res.text();
 }
 
-/** Branches tried after the head commit and the base branch. */
-export const FALLBACK_BRANCHES = ["main", "master"];
+/** Branches the config and .gitattributes are read from, in order. */
+export const CONFIG_BRANCHES = ["main", "master"];
 
-/** Head commit, base branch, then the fallback branches, without repeats. */
-export function configRefs(id: PrIdentity): string[] {
-  return [...new Set([id.headSha, ...[id.baseBranch, ...FALLBACK_BRANCHES].map(encodePath)])];
-}
-
-/** The first of `paths` at the first ref of `configRefs` that has one; null when none does. */
+/** The first of `paths` on the first of CONFIG_BRANCHES that has one; null when none does. */
 async function fetchFirst(
   deps: LoaderDeps,
   id: PrIdentity,
   paths: readonly string[],
 ): Promise<{ path: string; text: string } | null> {
-  for (const ref of configRefs(id)) {
+  for (const ref of CONFIG_BRANCHES) {
     for (const path of paths) {
       const text = await fetchRaw(deps, id, ref, path);
       if (text !== null) return { path, text };
@@ -59,8 +52,8 @@ async function fetchFirst(
 }
 
 /**
- * Resolve the config for a head commit: cached by SHA (final), else the first ref
- * of configRefs that has one. The root .gitattributes' linguist-generated rules are added as
+ * Resolve the config for a head commit: cached by SHA (final), else read from the first
+ * of CONFIG_BRANCHES that has one. The root .gitattributes' linguist-generated rules are added as
  * the Generated group, even when there is no pr-groups config. Writes the cache.
  * Throws on transport errors (nothing cached).
  */
