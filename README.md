@@ -51,3 +51,7 @@ localStorage["fast-pr:dev-config:OWNER/REPO"] = JSON.stringify({
 ```
 
 All extension state lives in `fast-pr:`-prefixed localStorage keys; clear them to reset.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
