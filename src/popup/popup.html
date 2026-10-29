@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Fast PR</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <h1>Fast PR</h1>
+    <a id="open-tab" href="popup.html" target="_blank" title="Open in a tab">Open in tab</a>
+  </header>
+
+  <section>
+    <label class="row">
+      <input type="checkbox" id="debug">
+      <span>
+        <strong>Debug logging</strong>
+        <small>Logs <code>[fast-pr]</code> lines to the GitHub page console.</small>
+      </span>
+    </label>
+  </section>
+
+  <section>
+    <label for="config">Local config</label>
+    <p class="hint">Applies to every repo in this browser, overriding each repo's <code>.github/pr-groups.json</code>. Leave empty to use the repos' own configs.</p>
+    <textarea id="config" rows="12" spellcheck="false" placeholder='{"groups":[{"name":"Docs","paths":["\\.md$"],"autoViewed":true}]}'></textarea>
+    <p id="validation" class="validation" aria-live="polite"></p>
+
+    <div class="buttons">
+      <button id="load-file" type="button">Load file…</button>
+      <input id="file" type="file" accept=".json,application/json" hidden>
+      <span class="spacer"></span>
+      <button id="remove" type="button" class="danger">Remove</button>
+      <button id="save" type="button" class="primary">Save</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="buttons">
+      <button id="clear-cache" type="button">Clear cached configs</button>
+    </div>
+  </section>
+
+  <p id="status" class="status" aria-live="polite"></p>
+  <script src="popup.js"></script>
+</body>
+</html>

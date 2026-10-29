@@ -106,15 +106,14 @@ describe("tree mode, debug, dev config", () => {
     S.setTreeMode("grouped", st);
     expect(S.getTreeMode(st)).toBe("grouped");
   });
-  it("debug and dev-config", () => {
+  it("debug and local config", () => {
     const st = new MemStore();
-    st.setItem("fast-pr:dev-config:o/r", "{}");
+    expect(S.getLocalConfig(st)).toBeNull();
+    st.setItem("fast-pr:local-config", "{}");
     expect(S.isDebug(st)).toBe(false);
-    expect(S.getDevConfig("o", "r", st)).toBeNull();
+    expect(S.getLocalConfig(st)).toBe("{}");
     st.setItem("fast-pr:debug", "1");
     expect(S.isDebug(st)).toBe(true);
-    expect(S.getDevConfig("o", "r", st)).toBe("{}");
-    expect(S.getDevConfig("o", "other", st)).toBeNull();
   });
 });
 
@@ -127,6 +126,6 @@ describe("throwing storage", () => {
     expect(S.getTreeMode(throwing)).toBe("grouped");
     expect(() => S.setTreeMode("original", throwing)).not.toThrow();
     expect(S.isDebug(throwing)).toBe(false);
-    expect(S.getDevConfig("o", "r", throwing)).toBeNull();
+    expect(S.getLocalConfig(throwing)).toBeNull();
   });
 });

@@ -2,7 +2,7 @@ import { compileConfig } from "../core/config";
 import { computeDiffstat } from "../core/diffstat";
 import { findChangesRoute, prIdentity, type PrIdentity } from "../core/route";
 import { getConfigBySha, lookupConfig, type CachedConfig } from "../core/storage";
-import { devConfigFor } from "../shared/config-source";
+import { localConfig } from "../shared/config-source";
 import { RESULT_EVENT } from "../shared/types";
 import { mountDecorations } from "./decorations";
 import { createDiffstatController } from "./diffstat-ui";
@@ -24,7 +24,7 @@ function logDevInvalid(id: PrIdentity, cfg: CachedConfig | null): void {
   const k = `${id.owner}/${id.repo}`;
   if (loggedDev.has(k)) return;
   loggedDev.add(k);
-  console.error(`[fast-pr] .github/pr-groups.json (dev-config): ${cfg.error}`);
+  console.error(`[fast-pr] local config (Fast PR menu): ${cfg.error}`);
 }
 
 export function startChangesPage(page: PageInfo): Teardown {
@@ -40,7 +40,7 @@ export function startChangesPage(page: PageInfo): Teardown {
   const checkConfig = async (result: NonNullable<ReturnType<typeof parseResult>>) => {
     const id = result.identity;
     if (result.devConfig) {
-      logDevInvalid(id, devConfigFor(id.owner, id.repo));
+      logDevInvalid(id, localConfig());
       return;
     }
     if (getConfigBySha(id.owner, id.repo, id.headSha)) return;
@@ -129,7 +129,7 @@ export function startConversationPage(page: PageInfo): Teardown {
       const id = prIdentity(found.route);
       if (!id) return;
       const summaries = found.route.diffSummaries;
-      const dev = devConfigFor(id.owner, id.repo);
+      const dev = localConfig();
       if (dev) {
         logDevInvalid(id, dev);
         show(dev, summaries);

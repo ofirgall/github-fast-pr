@@ -1,11 +1,11 @@
 import { hashString, parseConfig } from "../core/config";
-import { getDevConfig, type CachedConfig } from "../core/storage";
+import { getLocalConfig, type CachedConfig } from "../core/storage";
 
-type Store = Parameters<typeof getDevConfig>[2];
+type Store = Parameters<typeof getLocalConfig>[0];
 
-/** Dev-config override (only when debug is on). Returns null when none is set. */
-export function devConfigFor(owner: string, repo: string, store?: Store): CachedConfig | null {
-  const text = getDevConfig(owner, repo, store);
+/** Local config override from the extension menu, for every repo. Returns null when none is set. */
+export function localConfig(store?: Store): CachedConfig | null {
+  const text = getLocalConfig(store);
   if (text === null) return null;
   const r = parseConfig(text);
   return r.ok

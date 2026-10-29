@@ -3,17 +3,47 @@
   "name": "Fast PR",
   "version": "0.1.1",
   "description": "Group files in GitHub pull requests using a per-repo config.",
+  "permissions": [
+    "storage"
+  ],
+  "action": {
+    "default_title": "Fast PR",
+    "default_popup": "popup.html"
+  },
+  "options_ui": {
+    "page": "popup.html",
+    "open_in_tab": true
+  },
   "content_scripts": [
     {
-      "matches": ["https://github.com/*"],
-      "js": ["data-hook.js"],
+      "matches": [
+        "https://github.com/*"
+      ],
+      "js": [
+        "data-hook.js"
+      ],
       "run_at": "document_start",
       "world": "MAIN"
     },
     {
-      "matches": ["https://github.com/*"],
-      "js": ["content.js"],
-      "css": ["styles.css"],
+      "matches": [
+        "https://github.com/*"
+      ],
+      "js": [
+        "settings-sync.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://github.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "styles.css"
+      ],
       "run_at": "document_idle"
     }
   ]

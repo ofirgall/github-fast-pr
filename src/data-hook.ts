@@ -1,12 +1,12 @@
 // MAIN-world data hook: patches GitHub's PR changes route JSON before React reads it.
 import { getAutoRecord, isDebug, lookupConfig } from "./core/storage";
-import { devConfigFor } from "./shared/config-source";
+import { localConfig } from "./shared/config-source";
 import { patchChangesData, type PatchEnv } from "./hook/patch";
 import { RESULT_ATTR, RESULT_EVENT, type FastPrResult } from "./shared/types";
 
 const env: PatchEnv = {
   configFor(id) {
-    const dev = devConfigFor(id.owner, id.repo);
+    const dev = localConfig();
     if (dev) return { cfg: dev, dev: true };
     const c = lookupConfig(id);
     return c ? { cfg: c, dev: false } : null;

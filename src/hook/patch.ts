@@ -5,7 +5,7 @@ import type { CachedConfig } from "../core/storage";
 import type { ConfigStatus, FastPrFile, FastPrResult } from "../shared/types";
 
 export interface PatchEnv {
-  /** Sync config lookup; `dev` marks a dev-config override. */
+  /** Sync config lookup; `dev` marks the local config from the extension menu. */
   configFor(id: PrIdentity): { cfg: CachedConfig; dev: boolean } | null;
   /** Paths the extension already auto-viewed for this PR at id.headSha. */
   autoPaths(id: PrIdentity): string[];

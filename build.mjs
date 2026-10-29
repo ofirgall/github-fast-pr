@@ -8,7 +8,12 @@ rmSync("dist", { recursive: true, force: true });
 mkdirSync("dist", { recursive: true });
 
 await build({
-  entryPoints: { "data-hook": "src/data-hook.ts", content: "src/content.ts" },
+  entryPoints: {
+    "data-hook": "src/data-hook.ts",
+    "settings-sync": "src/settings-sync.ts",
+    content: "src/content.ts",
+    popup: "src/popup/popup.ts",
+  },
   outdir: "dist",
   bundle: true,
   format: "iife",
@@ -20,3 +25,5 @@ await build({
 
 copyFileSync("manifest.json", "dist/manifest.json");
 copyFileSync("src/styles.css", "dist/styles.css");
+copyFileSync("src/popup/popup.html", "dist/popup.html");
+copyFileSync("src/popup/popup.css", "dist/popup.css");

@@ -23,7 +23,7 @@ Or with npm directly: `npm install`, `npm run build`, `npm test`, `npm run typec
 2. `make build` writes an unminified build with source maps to `dist/`.
 3. In `chrome://extensions`, enable Developer mode, click Load unpacked and select `dist/` (`make install` builds and opens this page on macOS). Remove or disable any release build you loaded, or both run on the page.
 4. After each change: `make build`, click reload on the extension card, then refresh the GitHub tab.
-5. Give it a config: commit `.github/pr-groups.json` to a repo you can open PRs in, or set a dev-config without committing anything (see [Debugging](#debugging)).
+5. Give it a config: commit `.github/pr-groups.json` to a repo you can open PRs in, or add a local config from the [extension menu](#extension-menu) without committing anything.
 
 Auto-viewed groups really mark files viewed on GitHub, as if you clicked Viewed. Try them on a PR where that doesn't matter, or leave `autoViewed` out at first.
 
@@ -50,21 +50,15 @@ Read from the PR head commit, falling back to the base branch.
 - Files are ordered: normal groups in config order, then Ungrouped, then auto-viewed groups. Input order is kept within a group.
 - Auto-viewed files are marked viewed (saved to GitHub) on the full diff only, never for files you un-viewed at the current head commit.
 
-## Debugging
+## Extension menu
 
-Run in the DevTools console on github.com (then reload):
+Click the Fast PR toolbar icon (pin it from the puzzle-piece menu), or open the extension's Options for a full-page view.
 
-```js
-// verbose [fast-pr] logs
-localStorage["fast-pr:debug"] = "1";
+- **Debug logging**: logs `[fast-pr]` lines to the GitHub page console.
+- **Local config**: one config applied to every repo in this browser, overriding each repo's `.github/pr-groups.json`. Paste JSON or use Load file…; it is validated as you type. Save reloads the GitHub tab so it applies; Remove goes back to the repos' own configs.
+- **Clear cached configs**: drops cached `.github/pr-groups.json` results so they are fetched again on the next load.
 
-// override the fetched config for one repo (only read while debug is on)
-localStorage["fast-pr:dev-config:OWNER/REPO"] = JSON.stringify({
-  groups: [{ name: "Docs", paths: ["\\.md$"], autoViewed: true }],
-});
-```
-
-All extension state lives in `fast-pr:`-prefixed localStorage keys; clear them to reset.
+Settings live in `chrome.storage.local` and are copied into github.com `localStorage` (`fast-pr:debug`, `fast-pr:local-config`), where the extension reads them at page start. Other extension state also uses `fast-pr:`-prefixed localStorage keys.
 
 ## Releasing
 

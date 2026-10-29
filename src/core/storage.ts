@@ -133,7 +133,7 @@ export function isDebug(store?: Store): boolean {
   return read(store, "fast-pr:debug") === "1";
 }
 
-export function getDevConfig(owner: string, repo: string, store?: Store): string | null {
-  if (!isDebug(store)) return null;
-  return read(store, `fast-pr:dev-config:${owner}/${repo}`);
+/** Local config set from the extension menu (mirrored into localStorage); applies to every repo. */
+export function getLocalConfig(store?: Store): string | null {
+  return read(store, "fast-pr:local-config");
 }
