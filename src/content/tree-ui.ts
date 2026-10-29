@@ -177,18 +177,36 @@ function setComments(li: HTMLElement, count: number): void {
   badge.replaceChildren(icon(P.comment), el("span", undefined, String(count)));
 }
 
-/** Viewed counts on folder and group rows ("3/9"), green with a check once all are viewed. */
+/** Collapse `li`, moving the roving tab stop (and focus) off rows it hides. */
+function collapse(li: HTMLElement): void {
+  setExpanded(li, false);
+  const kids = li.querySelector(":scope > ul");
+  const stop = kids?.querySelector<HTMLElement>('li[tabindex="0"]');
+  const focused = !!kids && kids.contains(document.activeElement);
+  if (!stop && !focused) return;
+  if (stop) stop.tabIndex = -1;
+  li.tabIndex = 0;
+  if (focused) li.focus();
+}
+
+/**
+ * Viewed counts on folder and group rows ("3/9"), green with a check once all are viewed.
+ * A folder or group collapses when it becomes fully viewed; reopening it by hand sticks.
+ */
 export function setViewed(tree: HTMLElement, has: (path: string) => boolean): void {
   tree.querySelectorAll<HTMLElement>('li[data-kind="file"]').forEach((li) => li.toggleAttribute("data-viewed", has(li.dataset.path ?? "")));
-  tree.querySelectorAll<HTMLElement>(".fast-pr-tree-count").forEach((count) => {
-    const li = count.closest("li");
-    if (!li) return;
+  tree.querySelectorAll<HTMLElement>('li[data-kind="dir"], li[data-kind="group"]').forEach((li) => {
     const total = li.querySelectorAll('li[data-kind="file"]').length;
     const viewed = li.querySelectorAll('li[data-kind="file"][data-viewed]').length;
+    const done = total > 0 && viewed === total;
+    if (done && !li.hasAttribute("data-done")) collapse(li);
+    li.toggleAttribute("data-done", done);
+
+    const count = li.querySelector<HTMLElement>(":scope > .fast-pr-tree-row > .fast-pr-tree-count");
+    if (!count) return;
     const sig = `${viewed}/${total}`;
     if (count.dataset.sig === sig) return;
     count.dataset.sig = sig;
-    const done = viewed === total;
     count.classList.toggle("fast-pr-tree-count-done", done);
     count.title = `${fmt(viewed)} of ${fmt(total)} files viewed`;
     count.replaceChildren(icon(done ? P.check : P.file), el("span", undefined, `${fmt(viewed)}/${fmt(total)}`));

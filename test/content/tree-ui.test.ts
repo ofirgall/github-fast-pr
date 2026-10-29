@@ -193,6 +193,37 @@ describe("setViewed", () => {
     expect(count().querySelector("path")!.getAttribute("d")!.startsWith("M13.78")).toBe(true);
   });
 
+  it("collapses folders and groups once all their files are viewed, without re-collapsing", () => {
+    const ul = renderTree(buildGroupTree(toOrdered(FILES)), () => {});
+    document.body.append(ul);
+    const group = ul.querySelector<HTMLElement>('[data-kind="group"]')!;
+    const dir = ul.querySelector<HTMLElement>('[data-kind="dir"]')!;
+    const ungrouped = ul.querySelectorAll<HTMLElement>('[data-kind="group"]')[1];
+    setViewed(ul, (p) => p === "src/a/x.ts");
+    expect(dir.getAttribute("aria-expanded")).toBe("true");
+    expect(chevPath(dir).startsWith(CHEV_DOWN)).toBe(true);
+    expect(ungrouped.getAttribute("aria-expanded")).toBe("true");
+    dir.querySelector<HTMLElement>('[data-kind="file"]')!.focus();
+    setViewed(ul, (p) => p.startsWith("src/"));
+    expect(dir.getAttribute("aria-expanded")).toBe("false");
+    expect(chevPath(dir).startsWith(CHEV_RIGHT)).toBe(true);
+    expect(group.getAttribute("aria-expanded")).toBe("false");
+    // Focus can't stay on a hidden row.
+    expect(document.activeElement).toBe(group);
+    (group.querySelector(".fast-pr-tree-row") as HTMLElement).click();
+    setViewed(ul, (p) => p.startsWith("src/"));
+    expect(group.getAttribute("aria-expanded")).toBe("true");
+    setViewed(ul, (p) => p.startsWith("src/") || p === "README.md");
+    expect(ungrouped.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("starts done folders collapsed", () => {
+    const ul = renderTree(buildGroupTree(toOrdered(FILES)), () => {});
+    setViewed(ul, (p) => p.startsWith("src/"));
+    expect(ul.querySelector('[data-kind="group"]')!.getAttribute("aria-expanded")).toBe("false");
+    expect(ul.querySelectorAll('[data-kind="group"]')[1].getAttribute("aria-expanded")).toBe("true");
+  });
+
   it("marks single viewed files with a check", () => {
     const ul = renderTree(buildGroupTree(toOrdered(FILES)), () => {});
     const file = ul.querySelector<HTMLElement>('li[data-path="README.md"]')!;
