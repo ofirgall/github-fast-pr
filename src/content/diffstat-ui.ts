@@ -1,4 +1,4 @@
-import type { Diffstat } from "../core/diffstat";
+import type { Diffstat, DiffstatRow } from "../core/diffstat";
 import { el, fmt, isOwnMutation, markUi, throttled } from "./dom";
 
 export interface Native {
@@ -28,6 +28,7 @@ export function findNativeDiffstat(root: ParentNode): Native | null {
 }
 
 const signed = (sign: string, n: number) => `${sign}${fmt(n)}`;
+export const HIDE_DELAY_MS = 250;
 
 export function buildWidget(stat: Diffstat): HTMLElement {
   const w = el("span", "fast-pr-diffstat");
@@ -52,17 +53,29 @@ export function buildWidget(stat: Diffstat): HTMLElement {
   const head = el("tr");
   for (const h of ["Group", "Added", "Deleted", "Files"]) head.append(el("th", undefined, h));
   table.append(head);
-  for (const r of stat.rows) {
-    const tr = el("tr");
-    const name = el("td", "fast-pr-cell-name", r.name);
-    if (r.autoViewed) name.append(" ", el("span", "fast-pr-pill", "auto-viewed"));
+  const row = (cls: string, name: string, n: { added: number; deleted: number; files: number }) => {
+    const tr = el("tr", cls);
     tr.append(
-      name,
-      el("td", "fast-pr-add", signed("+", r.added)),
-      el("td", "fast-pr-del", signed("-", r.deleted)),
-      el("td", undefined, fmt(r.files)),
+      el("td", "fast-pr-cell-name", name),
+      el("td", "fast-pr-add", signed("+", n.added)),
+      el("td", "fast-pr-del", signed("-", n.deleted)),
+      el("td", undefined, fmt(n.files)),
     );
-    table.append(tr);
+    return tr;
+  };
+  const sum = (rows: DiffstatRow[]) =>
+    rows.reduce((t, r) => ({ added: t.added + r.added, deleted: t.deleted + r.deleted, files: t.files + r.files }), {
+      added: 0,
+      deleted: 0,
+      files: 0,
+    });
+  for (const [title, rows] of [
+    ["To review", stat.rows.filter((r) => !r.autoViewed)],
+    ["Auto-viewed", stat.rows.filter((r) => r.autoViewed)],
+  ] as const) {
+    if (rows.length === 0) continue;
+    table.append(row("fast-pr-section", title, sum(rows)));
+    for (const r of rows) table.append(row("fast-pr-group-row", r.name, r));
   }
   pop.append(table);
   wrap.append(btn, pop);
@@ -79,12 +92,18 @@ export function buildWidget(stat: Diffstat): HTMLElement {
   orig.title = "Original totals, including auto-viewed files";
   w.append(top, orig);
 
+  let hideTimer: ReturnType<typeof setTimeout> | undefined;
   const show = (v: boolean) => {
+    clearTimeout(hideTimer);
     pop.hidden = !v;
     btn.setAttribute("aria-expanded", String(v));
   };
   wrap.addEventListener("mouseenter", () => show(true));
-  wrap.addEventListener("mouseleave", () => show(false));
+  // Short grace period so the pointer can travel from the icon into the popover.
+  wrap.addEventListener("mouseleave", () => {
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => show(false), HIDE_DELAY_MS);
+  });
   btn.addEventListener("focus", () => show(true));
   btn.addEventListener("blur", () => show(false));
   btn.addEventListener("click", () => show(pop.hidden));
@@ -92,6 +111,25 @@ export function buildWidget(stat: Diffstat): HTMLElement {
     if ((e as KeyboardEvent).key === "Escape") show(false);
   });
   return w;
+}
+
+/** The count pill on the "Files changed" tab. */
+export function findFilesCounter(root: ParentNode): HTMLElement | null {
+  return root.querySelector<HTMLElement>(
+    '#prs-files-anchor-tab [data-component="CounterLabel"]:not(.fast-pr-files-count)',
+  );
+}
+
+/** Copy of the native pill showing files to review, with the full count muted in parentheses. */
+export function buildFilesCount(stat: Diffstat, native: HTMLElement): HTMLElement {
+  const c = native.cloneNode(false) as HTMLElement;
+  c.classList.remove("fast-pr-native-hidden");
+  c.classList.add("fast-pr-files-count");
+  markUi(c);
+  c.dataset.sig = `${stat.adjusted.files}/${stat.original.files}`;
+  c.title = "Files to review (all changed files, including auto-viewed)";
+  c.append(fmt(stat.adjusted.files), " ", el("span", "fast-pr-files-orig", `(${fmt(stat.original.files)})`));
+  return c;
 }
 
 /** Placeholder shown next to the native numbers while grouped counts are computed. */
@@ -120,6 +158,23 @@ export function createDiffstatController(onNativeChange: () => void): DiffstatCo
   const existingWidget = (n: Native) =>
     ([...n.container.children] as HTMLElement[]).find((c) => c.classList.contains("fast-pr-diffstat"));
 
+  const renderFiles = () => {
+    const native = findFilesCounter(document);
+    if (!native) return;
+    const next = native.nextElementSibling as HTMLElement | null;
+    const mine = next?.classList.contains("fast-pr-files-count") ? next : null;
+    if (!stat) {
+      mine?.remove();
+      native.classList.remove("fast-pr-native-hidden");
+      return;
+    }
+    if (!mine || mine.dataset.sig !== `${stat.adjusted.files}/${stat.original.files}`) {
+      mine?.remove();
+      native.after(buildFilesCount(stat, native));
+    }
+    native.classList.add("fast-pr-native-hidden");
+  };
+
   const cleanup = (n: Native | null) => {
     if (!n) return;
     existingWidget(n)?.remove();
@@ -127,6 +182,7 @@ export function createDiffstatController(onNativeChange: () => void): DiffstatCo
   };
 
   const render = () => {
+    renderFiles();
     const n = findNativeDiffstat(document);
     if (!n) return;
     const text = n.srOnly.textContent ?? "";
@@ -173,6 +229,8 @@ export function createDiffstatController(onNativeChange: () => void): DiffstatCo
     destroy() {
       mo.disconnect();
       sched.cancel();
+      stat = null;
+      renderFiles();
       cleanup(findNativeDiffstat(document));
     },
   };

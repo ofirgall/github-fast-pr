@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { compileConfig, parseConfig } from "../../src/core/config";
 import { computeDiffstat } from "../../src/core/diffstat";
-import { buildWidget, createDiffstatController, findNativeDiffstat } from "../../src/content/diffstat-ui";
+import { buildWidget, createDiffstatController, findNativeDiffstat, HIDE_DELAY_MS } from "../../src/content/diffstat-ui";
 
 const NATIVE = `<div data-component="PH_Navigation"><div class="d-flex flex-items-center gap-1" id="stat"><span aria-hidden="true" class="f6 fgColor-success text-bold">+28,358</span><span aria-hidden="true" class="f6 fgColor-danger text-bold">-199</span><span class="sr-only">Lines changed: 28358 additions &amp; 199 deletions</span><div class="d-flex" id="squares"><span>■</span></div></div></div>`;
 
@@ -37,12 +37,29 @@ describe("diffstat widget", () => {
     expect(w.querySelector(".fast-pr-ds-top .fast-pr-del")!.textContent).toBe("-11");
     expect(w.querySelector(".fast-pr-ds-orig")!.textContent).toBe("(+31,205 -111)");
     const rows = [...w.querySelectorAll("tr")].slice(1).map((r) => r.textContent);
-    expect(rows).toEqual(["Src+1,200-101", "Ungrouped+5-11", "Gen auto-viewed+30,000-1001"]);
+    expect(rows).toEqual([
+      "To review+1,205-112",
+      "Src+1,200-101",
+      "Ungrouped+5-11",
+      "Auto-viewed+30,000-1001",
+      "Gen+30,000-1001",
+    ]);
+    expect([...w.querySelectorAll("tr.fast-pr-section td:first-child")].map((t) => t.textContent)).toEqual([
+      "To review",
+      "Auto-viewed",
+    ]);
     const btn = w.querySelector<HTMLButtonElement>("button.fast-pr-info")!;
     expect(btn.getAttribute("aria-label")).toBe("Line breakdown by group");
   });
 
+  it("omits an empty section", () => {
+    const noAuto = { ...stat, rows: stat.rows.filter((r) => !r.autoViewed) };
+    const w = buildWidget(noAuto);
+    expect([...w.querySelectorAll("tr.fast-pr-section")].map((t) => t.firstChild!.textContent)).toEqual(["To review"]);
+  });
+
   it("popover opens on hover and focus, closes on blur / Escape", () => {
+    vi.useFakeTimers();
     document.body.append(buildWidget(stat));
     const wrap = document.querySelector<HTMLElement>(".fast-pr-info-wrap")!;
     const btn = wrap.querySelector<HTMLButtonElement>("button")!;
@@ -51,8 +68,17 @@ describe("diffstat widget", () => {
     wrap.dispatchEvent(new MouseEvent("mouseenter"));
     expect(pop.hidden).toBe(false);
     expect(btn.getAttribute("aria-expanded")).toBe("true");
+    // Leaving starts a grace period; re-entering (pointer moved into the popover) cancels it.
     wrap.dispatchEvent(new MouseEvent("mouseleave"));
+    vi.advanceTimersByTime(HIDE_DELAY_MS - 50);
+    expect(pop.hidden).toBe(false);
+    wrap.dispatchEvent(new MouseEvent("mouseenter"));
+    vi.advanceTimersByTime(HIDE_DELAY_MS);
+    expect(pop.hidden).toBe(false);
+    wrap.dispatchEvent(new MouseEvent("mouseleave"));
+    vi.advanceTimersByTime(HIDE_DELAY_MS);
     expect(pop.hidden).toBe(true);
+    vi.useRealTimers();
     btn.dispatchEvent(new FocusEvent("focus"));
     expect(pop.hidden).toBe(false);
     btn.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
@@ -116,6 +142,23 @@ describe("diffstat widget", () => {
     c.set(null);
     expect(document.body.innerHTML).toBe(before);
     c.destroy();
+  });
+
+  it("Files changed counter shows files to review with the full count muted", () => {
+    const tab = `<a id="prs-files-anchor-tab">Files changed<span aria-hidden="true" data-variant="secondary" data-component="CounterLabel" class="ml-2 pill">3</span><span class="vh">&nbsp;(3)</span></a>`;
+    document.body.insertAdjacentHTML("afterbegin", tab);
+    const before = document.body.innerHTML;
+    const c = createDiffstatController(() => {});
+    c.set(stat);
+    const native = document.querySelector('[data-component="CounterLabel"]')!;
+    const mine = native.nextElementSibling as HTMLElement;
+    expect(native.classList.contains("fast-pr-native-hidden")).toBe(true);
+    expect(mine.classList.contains("fast-pr-files-count")).toBe(true);
+    expect(mine.classList.contains("pill")).toBe(true);
+    expect(mine.textContent).toBe("2 (3)");
+    expect(mine.querySelector(".fast-pr-files-orig")!.textContent).toBe("(3)");
+    c.destroy();
+    expect(document.body.innerHTML).toBe(before);
   });
 
   it("notifies when native text changes", async () => {

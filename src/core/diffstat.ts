@@ -10,25 +10,29 @@ export interface DiffstatRow {
   deleted: number;
   files: number;
 }
+export interface DiffTotals { added: number; deleted: number; files: number }
 export interface Diffstat {
-  adjusted: { added: number; deleted: number };
-  original: { added: number; deleted: number };
+  /** Excluding auto-viewed groups. */
+  adjusted: DiffTotals;
+  original: DiffTotals;
   rows: DiffstatRow[];
 }
 
 export function computeDiffstat(files: DiffFile[], groups: CompiledGroup[]): Diffstat {
-  const original = { added: 0, deleted: 0 };
-  const adjusted = { added: 0, deleted: 0 };
+  const original: DiffTotals = { added: 0, deleted: 0, files: 0 };
+  const adjusted: DiffTotals = { added: 0, deleted: 0, files: 0 };
   const rows: DiffstatRow[] = [];
   let current: DiffstatRow | null = null;
   let currentKey: string | null = null;
   for (const { file, group } of orderFiles(files, groups)) {
     original.added += file.linesAdded;
     original.deleted += file.linesDeleted;
+    original.files += 1;
     const auto = group?.autoViewed === true;
     if (!auto) {
       adjusted.added += file.linesAdded;
       adjusted.deleted += file.linesDeleted;
+      adjusted.files += 1;
     }
     const key = group ? `g${group.index}` : "u";
     if (key !== currentKey) {

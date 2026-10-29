@@ -16,8 +16,8 @@ describe("computeDiffstat", () => {
       { path: "gen/a.ts", linesAdded: 800, linesDeleted: 20 },
     ];
     const d = computeDiffstat(files, cfg(true));
-    expect(d.original).toEqual({ added: 1000, deleted: 100 });
-    expect(d.adjusted).toEqual({ added: 200, deleted: 80 });
+    expect(d.original).toEqual({ added: 1000, deleted: 100, files: 2 });
+    expect(d.adjusted).toEqual({ added: 200, deleted: 80, files: 1 });
   });
   it("adjusted equals original with no auto groups", () => {
     const files = [
@@ -26,7 +26,7 @@ describe("computeDiffstat", () => {
     ];
     const d = computeDiffstat(files, cfg(false));
     expect(d.adjusted).toEqual(d.original);
-    expect(d.adjusted).toEqual({ added: 12, deleted: 3 });
+    expect(d.adjusted).toEqual({ added: 12, deleted: 3, files: 2 });
   });
   it("rows are in display order, omit empty groups, mark auto and ungrouped", () => {
     const files = [
@@ -45,6 +45,6 @@ describe("computeDiffstat", () => {
   it("handles no files", () => {
     const d = computeDiffstat([], cfg(true));
     expect(d.rows).toEqual([]);
-    expect(d.adjusted).toEqual({ added: 0, deleted: 0 });
+    expect(d.adjusted).toEqual({ added: 0, deleted: 0, files: 0 });
   });
 });
