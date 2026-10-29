@@ -5,10 +5,16 @@ export interface Settings {
   debug: boolean;
   /** Local config text applied to every repo, overriding .github/pr-groups.json; "" for none. */
   localConfig: string;
+  /** Tree groups start collapsed (default on). */
+  collapseGroups: boolean;
 }
+
+export const DEFAULT_SETTINGS: Readonly<Settings> = { debug: false, localConfig: "", collapseGroups: true };
 
 export const SETTINGS_KEY = "settings";
 export const DEBUG_KEY = "fast-pr:debug";
+// Set only when collapseGroups is off, so a page with nothing mirrored yet gets the default.
+export const EXPAND_GROUPS_KEY = "fast-pr:expand-groups";
 export const LOCAL_CONFIG_KEY = "fast-pr:local-config";
 // Per-repo override keys from earlier builds; always removed.
 const LEGACY_PREFIX = "fast-pr:dev-config:";
@@ -16,11 +22,12 @@ const LEGACY_PREFIX = "fast-pr:dev-config:";
 const CACHE_PREFIXES = ["fast-pr:cfg2:", "fast-pr:cfg2-pr:", "fast-pr:cfg:", "fast-pr:cfg-pr:"];
 
 export function normalizeSettings(raw: unknown): Settings {
-  const out: Settings = { debug: false, localConfig: "" };
+  const out: Settings = { ...DEFAULT_SETTINGS };
   if (typeof raw !== "object" || raw === null) return out;
   const o = raw as Record<string, unknown>;
   out.debug = o.debug === true;
   if (typeof o.localConfig === "string") out.localConfig = o.localConfig.trim();
+  out.collapseGroups = o.collapseGroups !== false;
   return out;
 }
 
@@ -34,6 +41,7 @@ export function mirrorPlan(s: Settings, existingKeys: string[]): { set: [string,
   };
   toggle(LOCAL_CONFIG_KEY, s.localConfig || null);
   toggle(DEBUG_KEY, s.debug ? "1" : null);
+  toggle(EXPAND_GROUPS_KEY, s.collapseGroups ? null : "1");
   return { set, remove };
 }
 

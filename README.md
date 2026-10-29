@@ -4,7 +4,24 @@ Chrome (MV3) extension that groups the files of a GitHub pull request using a pe
 
 ## Install from a release
 
-Download `github-fast-pr-<version>.zip` from [Releases](https://github.com/ofirgall/github-fast-pr/releases), unzip it, then in `chrome://extensions` enable Developer mode, click Load unpacked and select the unzipped folder. No Node or npm needed.
+No Node or npm needed.
+
+1. Download `github-fast-pr-<version>.zip` from the latest [release](https://github.com/ofirgall/github-fast-pr/releases/latest).
+2. Unzip it into a folder you will keep, e.g. `~/chrome-extensions/github-fast-pr`. Chrome runs the extension from that folder, so deleting or moving it removes the extension.
+3. Open `chrome://extensions` and turn on Developer mode (top right).
+4. Click Load unpacked and select the folder.
+5. Open a pull request on github.com. Pages already open need a refresh.
+
+Chrome may show a banner about developer-mode extensions on startup; that is expected for extensions not from the Chrome Web Store.
+
+### Update
+
+Unpacked extensions don't update on their own.
+
+1. Unzip the new release over the same folder, replacing its files.
+2. In `chrome://extensions`, click the reload icon on the Fast PR card, then refresh open GitHub tabs.
+
+Keep the same folder: the extension's ID comes from its path, and the menu settings (debug, local config) belong to that ID.
 
 ## Build and install
 
@@ -65,11 +82,12 @@ Higher priority goes first; ties keep config order (Generated last).
 
 Click the Fast PR toolbar icon (pin it from the puzzle-piece menu), or open the extension's Options for a full-page view.
 
+- **Auto collapse groups** (on by default): the grouped tree starts with every group collapsed. When off, only auto-viewed groups start collapsed. Applies to the next PR page you open or reload.
 - **Debug logging**: logs `[fast-pr]` lines to the GitHub page console.
 - **Local config**: one config applied to every repo in this browser, overriding each repo's `.github/pr-groups.json`. Paste JSON or use Load file…; it is validated as you type. Save reloads the GitHub tab so it applies; Remove goes back to the repos' own configs.
 - **Clear cached configs**: drops cached `.github/pr-groups.json` results so they are fetched again on the next load.
 
-Settings live in `chrome.storage.local` and are copied into github.com `localStorage` (`fast-pr:debug`, `fast-pr:local-config`), where the extension reads them at page start. Other extension state also uses `fast-pr:`-prefixed localStorage keys.
+Settings live in `chrome.storage.local` and are copied into github.com `localStorage` (`fast-pr:debug`, `fast-pr:local-config`, `fast-pr:expand-groups`), where the extension reads them at page start. Other extension state also uses `fast-pr:`-prefixed localStorage keys.
 
 ## Releasing
 

@@ -1,6 +1,6 @@
 import type { GroupRef } from "../core/diffstat";
 import { buildGroupTree, type TreeNode } from "../core/tree";
-import { getTreeMode, setTreeMode, type TreeMode } from "../core/storage";
+import { collapseGroups, getTreeMode, setTreeMode, type TreeMode } from "../core/storage";
 import type { FastPrFile, FastPrResult } from "../shared/types";
 import { el, fmt, icon, isOwnMutation, markUi, throttled } from "./dom";
 import { applyToGitHub } from "./github-viewed";
@@ -112,7 +112,7 @@ function viewedMark(title: string): HTMLElement {
   return mark;
 }
 
-function buildItem(node: TreeNode, level: number): HTMLLIElement {
+function buildItem(node: TreeNode, level: number, collapseGroups: boolean): HTMLLIElement {
   const li = el("li");
   li.setAttribute("role", "treeitem");
   li.setAttribute("aria-level", String(level));
@@ -139,8 +139,8 @@ function buildItem(node: TreeNode, level: number): HTMLLIElement {
     li.append(row);
   } else {
     li.dataset.kind = node.kind;
-    // Auto-viewed groups start collapsed: there is nothing in them to review.
-    const open = !(node.kind === "group" && node.autoViewed);
+    // Auto-viewed groups always start collapsed: there is nothing in them to review.
+    const open = !(node.kind === "group" && (node.autoViewed || collapseGroups));
     li.setAttribute("aria-expanded", String(open));
     row.append(chevSlot(true, open));
     row.append(leadSlot(node, open));
@@ -162,7 +162,7 @@ function buildItem(node: TreeNode, level: number): HTMLLIElement {
     li.append(row);
     const ul = el("ul");
     ul.setAttribute("role", "group");
-    for (const c of node.children) ul.append(buildItem(c, level + 1));
+    for (const c of node.children) ul.append(buildItem(c, level + 1, collapseGroups));
     li.append(ul);
   }
   return li;
@@ -253,16 +253,22 @@ export function syncFromNative(tree: HTMLElement, native: Element): void {
   }
 }
 
+export interface RenderOptions {
+  label?: string;
+  onMenu?: (li: HTMLElement, at: { x: number; y: number }) => void;
+  /** Start every group collapsed, not only auto-viewed ones. */
+  collapseGroups?: boolean;
+}
+
 export function renderTree(
   nodes: TreeNode[],
   onSelect: (pathDigest: string, path: string) => void,
-  label = "Grouped files",
-  onMenu?: (li: HTMLElement, at: { x: number; y: number }) => void,
+  { label = "Grouped files", onMenu, collapseGroups = false }: RenderOptions = {},
 ): HTMLUListElement {
   const root = el("ul", "fast-pr-tree");
   root.setAttribute("role", "tree");
   root.setAttribute("aria-label", label);
-  for (const n of nodes) root.append(buildItem(n, 1));
+  for (const n of nodes) root.append(buildItem(n, 1, collapseGroups));
 
   const items = (): HTMLLIElement[] =>
     [...root.querySelectorAll<HTMLLIElement>('li[role="treeitem"]')].filter((li) => {
@@ -356,6 +362,8 @@ export interface TreeDeps {
   send: typeof sendViewedBatch;
   /** Update GitHub's own in-page viewed state; false when its store can't be reached. */
   applyToGitHub: (paths: string[], viewed: boolean) => boolean;
+  /** The menu's "Auto collapse groups" option; read from storage when unset. */
+  collapseGroups?: () => boolean;
 }
 
 let warnedStore = false;
@@ -412,8 +420,7 @@ export function mountTreePanel(
     (digest) => {
       location.hash = "diff-" + digest;
     },
-    undefined,
-    onMenu,
+    { onMenu, collapseGroups: (deps.collapseGroups ?? collapseGroups)() },
   );
   panel.append(toolbar, tree);
   setViewed(tree, viewed.has);

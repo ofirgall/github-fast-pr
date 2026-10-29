@@ -129,6 +129,11 @@ export function setTreeMode(m: TreeMode, store?: Store): void {
   write(store, "fast-pr:tree-mode", m);
 }
 
+/** The menu's "Auto collapse groups" option, mirrored from the extension (default on). */
+export function collapseGroups(store?: Store): boolean {
+  return read(store, "fast-pr:expand-groups") !== "1";
+}
+
 export function isDebug(store?: Store): boolean {
   return read(store, "fast-pr:debug") === "1";
 }

@@ -1,10 +1,11 @@
 // Extension menu (toolbar popup and options page): debug toggle and the local config.
 import { parseConfig } from "../core/config";
-import { normalizeSettings, SETTINGS_KEY, type Settings } from "../core/settings";
+import { DEFAULT_SETTINGS, normalizeSettings, SETTINGS_KEY, type Settings } from "../core/settings";
 import type { SyncMessage, SyncReply } from "../settings-sync";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const debugBox = $<HTMLInputElement>("debug");
+const collapseBox = $<HTMLInputElement>("collapse-groups");
 const configInput = $<HTMLTextAreaElement>("config");
 const validation = $<HTMLParagraphElement>("validation");
 const saveBtn = $<HTMLButtonElement>("save");
@@ -12,7 +13,7 @@ const removeBtn = $<HTMLButtonElement>("remove");
 const fileInput = $<HTMLInputElement>("file");
 const status = $<HTMLParagraphElement>("status");
 
-let settings: Settings = { debug: false, localConfig: "" };
+let settings: Settings = { ...DEFAULT_SETTINGS };
 /** The active tab when it is a github.com page running our content script. */
 let githubTab: number | null = null;
 
@@ -84,6 +85,13 @@ debugBox.addEventListener("change", async () => {
   say(settings.debug ? "Debug on. Reload a GitHub page to see [fast-pr] logs." : "Debug off.");
 });
 
+collapseBox.addEventListener("change", async () => {
+  settings.collapseGroups = collapseBox.checked;
+  await store();
+  await send({ type: "fast-pr:sync" });
+  say(`Groups start ${settings.collapseGroups ? "collapsed" : "expanded"} on the next PR you open or reload.`);
+});
+
 configInput.addEventListener("input", validate);
 
 $("load-file").addEventListener("click", () => fileInput.click());
@@ -121,6 +129,7 @@ async function init(): Promise<void> {
   const r = await chrome.storage.local.get(SETTINGS_KEY);
   settings = normalizeSettings(r[SETTINGS_KEY]);
   debugBox.checked = settings.debug;
+  collapseBox.checked = settings.collapseGroups;
   configInput.value = settings.localConfig;
   // Already in a tab (options page): the "open in tab" link is pointless.
   if (await chrome.tabs.getCurrent()) $("open-tab").hidden = true;

@@ -3,17 +3,21 @@ import { cacheKeys, mirrorPlan, normalizeSettings } from "../src/core/settings";
 
 describe("normalizeSettings", () => {
   it("defaults on junk", () => {
-    expect(normalizeSettings(undefined)).toEqual({ debug: false, localConfig: "" });
-    expect(normalizeSettings({ debug: "yes", localConfig: 1 })).toEqual({ debug: false, localConfig: "" });
+    expect(normalizeSettings(undefined)).toEqual({ debug: false, localConfig: "", collapseGroups: true });
+    expect(normalizeSettings({ debug: "yes", localConfig: 1, collapseGroups: 0 })).toEqual({
+      debug: false, localConfig: "", collapseGroups: true,
+    });
   });
-  it("keeps debug and trimmed config", () => {
-    expect(normalizeSettings({ debug: true, localConfig: " {} \n" })).toEqual({ debug: true, localConfig: "{}" });
+  it("keeps debug, trimmed config and a turned-off collapseGroups", () => {
+    expect(normalizeSettings({ debug: true, localConfig: " {} \n", collapseGroups: false })).toEqual({
+      debug: true, localConfig: "{}", collapseGroups: false,
+    });
   });
 });
 
 describe("mirrorPlan", () => {
   it("sets config and debug, removes legacy per-repo keys", () => {
-    const plan = mirrorPlan({ debug: true, localConfig: "A" }, [
+    const plan = mirrorPlan({ debug: true, localConfig: "A", collapseGroups: true }, [
       "fast-pr:dev-config:o/r",
       "fast-pr:cfg:o/r@s",
       "fast-pr:tree-mode",
@@ -22,9 +26,15 @@ describe("mirrorPlan", () => {
     expect(plan.remove).toEqual(["fast-pr:dev-config:o/r"]);
   });
   it("removes config and debug when cleared", () => {
-    const plan = mirrorPlan({ debug: false, localConfig: "" }, ["fast-pr:local-config", "fast-pr:debug"]);
+    const off = { debug: false, localConfig: "", collapseGroups: true };
+    const plan = mirrorPlan(off, ["fast-pr:local-config", "fast-pr:debug"]);
     expect(plan).toEqual({ set: [], remove: ["fast-pr:local-config", "fast-pr:debug"] });
-    expect(mirrorPlan({ debug: false, localConfig: "" }, [])).toEqual({ set: [], remove: [] });
+    expect(mirrorPlan(off, [])).toEqual({ set: [], remove: [] });
+  });
+  it("marks expand-groups only when auto collapse is off", () => {
+    const s = { debug: false, localConfig: "", collapseGroups: false };
+    expect(mirrorPlan(s, []).set).toEqual([["fast-pr:expand-groups", "1"]]);
+    expect(mirrorPlan({ ...s, collapseGroups: true }, ["fast-pr:expand-groups"]).remove).toEqual(["fast-pr:expand-groups"]);
   });
 });
 

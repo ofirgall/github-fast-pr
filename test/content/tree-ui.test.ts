@@ -45,6 +45,15 @@ describe("renderTree", () => {
     expect(ul.querySelectorAll('li[tabindex="0"]')).toHaveLength(1);
   });
 
+  it("collapseGroups starts every group collapsed, leaving folders open", () => {
+    const ul = renderTree(buildGroupTree(toOrdered(FILES)), () => {}, { collapseGroups: true });
+    document.body.append(ul);
+    const groups = [...ul.querySelectorAll<HTMLElement>('[data-kind="group"]')];
+    expect(groups.map((g) => g.getAttribute("aria-expanded"))).toEqual(["false", "false", "false"]);
+    expect(groups.every((g) => chevPath(g).startsWith(CHEV_RIGHT))).toBe(true);
+    expect(ul.querySelector('[data-kind="dir"]')!.getAttribute("aria-expanded")).toBe("true");
+  });
+
   it("uses svg octicons: chevrons for expandable, folder swap for dirs, file icon, spacer for files", () => {
     const ul = renderTree(buildGroupTree(toOrdered(FILES)), () => {});
     document.body.append(ul);
@@ -254,6 +263,19 @@ describe("setViewed", () => {
 });
 
 describe("mountTreePanel", () => {
+  it("starts with all groups collapsed unless the menu turned auto collapse off", () => {
+    const expanded = () =>
+      [...document.querySelectorAll('.fast-pr-tree [data-kind="group"]')].map((g) => g.getAttribute("aria-expanded"));
+    document.body.innerHTML = '<div><ul role="tree" aria-label="File Tree"></ul></div>';
+    let m = mountTreePanel(result(), createViewedState(result()));
+    expect(expanded()).toEqual(["false", "false", "false"]);
+    m.destroy();
+    localStorage.setItem("fast-pr:expand-groups", "1");
+    m = mountTreePanel(result(), createViewedState(result()));
+    expect(expanded()).toEqual(["true", "true", "false"]);
+    m.destroy();
+  });
+
   it("updates counts on GitHub's Viewed toggles", () => {
     document.body.innerHTML = '<div><ul role="tree" aria-label="File Tree"></ul></div>';
     const v = createViewedState(result());
