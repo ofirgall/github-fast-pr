@@ -21,10 +21,17 @@ function warn(e: unknown): void {
   console.warn("[fast-pr] data hook error, leaving data untouched", e);
 }
 
-function publish(result: FastPrResult): void {
-  const json = JSON.stringify(result);
+let lastJson: string | null = null;
+
+function announce(json: string): void {
   document.documentElement.setAttribute(RESULT_ATTR, json);
   document.dispatchEvent(new CustomEvent(RESULT_EVENT, { detail: json }));
+}
+
+function publish(result: FastPrResult): void {
+  const json = JSON.stringify(result);
+  lastJson = json;
+  announce(json);
   if (isDebug()) console.log("[fast-pr] hook applied", result.configStatus, result.appliedHash, result.files.length, "files");
 }
 
@@ -36,6 +43,16 @@ function handle(value: unknown): void {
   } catch (e) {
     warn(e);
   }
+}
+
+// On popstate (including #diff-… hash links) GitHub restores <html> attributes from a
+// per-URL snapshot, dropping ours and with it all the page UI. Put it back.
+try {
+  new MutationObserver(() => {
+    if (lastJson !== null && !document.documentElement.hasAttribute(RESULT_ATTR)) announce(lastJson);
+  }).observe(document.documentElement, { attributes: true, attributeFilter: [RESULT_ATTR] });
+} catch (e) {
+  warn(e);
 }
 
 try {
