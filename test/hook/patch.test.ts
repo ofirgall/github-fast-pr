@@ -61,6 +61,15 @@ describe("patchChangesData", () => {
     expect(d.payload.pullRequestsChangesWithRangeRoute.user.viewedFilesCount).toBe(1);
   });
 
+  it("with auto-mark viewed off, groups and orders but marks nothing", () => {
+    const d = routePayload(files());
+    const out = patchChangesData(d, { ...env(CFG), autoView: () => false })!;
+    expect(route(d).diffSummaries.map((s: any) => s.path)).toEqual(["src/x.ts", "README.md", "a.gen.ts", "b.gen.ts"]);
+    expect(route(d).diffSummaries[2].markedAsViewed).toBe(false);
+    expect(route(d).user.viewedFilesCount).toBe(1);
+    expect(out.result.files[2]).toMatchObject({ group: "Gen", autoViewed: true, markedByHook: false, skippedUnviewed: false });
+  });
+
   it("skips files the user un-viewed at the same head", () => {
     const d = routePayload(files());
     const out = patchChangesData(d, env(CFG, ["a.gen.ts"]))!;

@@ -99,13 +99,14 @@ Higher priority goes first. Ties keep config order, with Generated last.
 Click the Fast PR toolbar icon (pin it from the puzzle-piece menu), or open the extension's Options for a full-page view.
 
 - **Auto collapse groups** (on by default): the grouped tree starts with every group collapsed. When off, only auto-viewed groups start collapsed. It applies to the next PR page you open or reload.
+- **Auto-mark viewed** (on by default): marks the files of auto-viewed groups as Viewed on GitHub. When off, they are still grouped, ordered, collapsed and left out of the line counts, but you mark them yourself. It applies to the next PR page you open or reload.
 - **Debug logging**: logs `[fast-pr]` lines to the GitHub page console.
 - **Local config**: one config for every repo in this browser. It overrides each repo's `.github/pr-groups.json`, but a repo's `.gitattributes` Generated group still applies.
   - Paste JSON or use Load file…. It is validated as you type.
   - Save reloads the GitHub tab so the config applies. Remove goes back to the repos' own configs.
 - **Clear cached configs**: drops cached config results, so they are fetched again on the next load.
 
-Settings live in `chrome.storage.local`. They are copied into github.com `localStorage`, where the extension reads them at page start: `fast-pr:debug`, `fast-pr:local-config` and `fast-pr:expand-groups`. Other extension state also uses `fast-pr:`-prefixed localStorage keys.
+Settings live in `chrome.storage.local`. They are copied into github.com `localStorage`, where the extension reads them at page start: `fast-pr:debug`, `fast-pr:local-config`, `fast-pr:expand-groups` and `fast-pr:no-auto-view`. Other extension state also uses `fast-pr:`-prefixed localStorage keys.
 
 ---
 

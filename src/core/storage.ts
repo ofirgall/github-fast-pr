@@ -134,6 +134,11 @@ export function collapseGroups(store?: Store): boolean {
   return read(store, "fast-pr:expand-groups") !== "1";
 }
 
+/** The menu's "Auto-mark viewed" option, mirrored from the extension (default on). */
+export function autoView(store?: Store): boolean {
+  return read(store, "fast-pr:no-auto-view") !== "1";
+}
+
 export function isDebug(store?: Store): boolean {
   return read(store, "fast-pr:debug") === "1";
 }

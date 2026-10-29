@@ -9,6 +9,8 @@ export interface PatchEnv {
   configFor(id: PrIdentity): { cfg: CachedConfig; dev: boolean } | null;
   /** Paths the extension already auto-viewed for this PR at id.headSha. */
   autoPaths(id: PrIdentity): string[];
+  /** The menu's "Auto-mark viewed" option; when false, auto-viewed groups only group (default on). */
+  autoView?(): boolean;
 }
 
 const FLAG = "__fastPr";
@@ -43,13 +45,14 @@ export function patchChangesData(
   if (looked && looked.cfg.status === "ok") {
     const groups = compileConfig(looked.cfg.config);
     const ordered = orderFiles(summaries, groups, ungroupedViewPriority(looked.cfg.config));
-    const already = full ? new Set(env.autoPaths(id)) : new Set<string>();
+    const marking = full && (env.autoView?.() ?? true);
+    const already = marking ? new Set(env.autoPaths(id)) : new Set<string>();
     const toMark: typeof summaries = [];
     const files: FastPrFile[] = ordered.map(({ file, group }) => {
       const auto = group?.autoViewed === true;
       let mark = false;
       let skipped = false;
-      if (full && auto && !file.markedAsViewed) {
+      if (marking && auto && !file.markedAsViewed) {
         if (already.has(file.path)) skipped = true;
         else {
           mark = true;

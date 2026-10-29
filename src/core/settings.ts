@@ -7,14 +7,17 @@ export interface Settings {
   localConfig: string;
   /** Tree groups start collapsed (default on). */
   collapseGroups: boolean;
+  /** Mark auto-viewed groups' files viewed on GitHub (default on); off only groups them. */
+  autoView: boolean;
 }
 
-export const DEFAULT_SETTINGS: Readonly<Settings> = { debug: false, localConfig: "", collapseGroups: true };
+export const DEFAULT_SETTINGS: Readonly<Settings> = { debug: false, localConfig: "", collapseGroups: true, autoView: true };
 
 export const SETTINGS_KEY = "settings";
 export const DEBUG_KEY = "fast-pr:debug";
 // Set only when collapseGroups is off, so a page with nothing mirrored yet gets the default.
 export const EXPAND_GROUPS_KEY = "fast-pr:expand-groups";
+export const NO_AUTO_VIEW_KEY = "fast-pr:no-auto-view";
 export const LOCAL_CONFIG_KEY = "fast-pr:local-config";
 // Per-repo override keys from earlier builds; always removed.
 const LEGACY_PREFIX = "fast-pr:dev-config:";
@@ -29,6 +32,7 @@ export function normalizeSettings(raw: unknown): Settings {
   out.debug = o.debug === true;
   if (typeof o.localConfig === "string") out.localConfig = o.localConfig.trim();
   out.collapseGroups = o.collapseGroups !== false;
+  out.autoView = o.autoView !== false;
   return out;
 }
 
@@ -45,6 +49,7 @@ export function mirrorPlan(s: Settings, existingKeys: string[]): { set: [string,
   toggle(LOCAL_CONFIG_KEY, s.localConfig || null);
   toggle(DEBUG_KEY, s.debug ? "1" : null);
   toggle(EXPAND_GROUPS_KEY, s.collapseGroups ? null : "1");
+  toggle(NO_AUTO_VIEW_KEY, s.autoView ? null : "1");
   return { set, remove };
 }
 

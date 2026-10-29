@@ -1,5 +1,5 @@
 // MAIN-world data hook: patches GitHub's PR changes route JSON before React reads it.
-import { getAutoRecord, isDebug } from "./core/storage";
+import { autoView, getAutoRecord, isDebug } from "./core/storage";
 import { effectiveConfig } from "./shared/config-source";
 import { patchChangesData, type PatchEnv } from "./hook/patch";
 import { parseReviewRequest } from "./hook/review";
@@ -18,6 +18,7 @@ import {
 const env: PatchEnv = {
   configFor: (id) => effectiveConfig(id),
   autoPaths: (id) => getAutoRecord(id.owner, id.repo, id.number, id.headSha).paths,
+  autoView: () => autoView(),
 };
 
 let warned = false;

@@ -6,6 +6,7 @@ import type { SyncMessage, SyncReply } from "../settings-sync";
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const debugBox = $<HTMLInputElement>("debug");
 const collapseBox = $<HTMLInputElement>("collapse-groups");
+const autoViewBox = $<HTMLInputElement>("auto-view");
 const configInput = $<HTMLTextAreaElement>("config");
 const validation = $<HTMLParagraphElement>("validation");
 const saveBtn = $<HTMLButtonElement>("save");
@@ -92,6 +93,13 @@ collapseBox.addEventListener("change", async () => {
   say(`Groups start ${settings.collapseGroups ? "collapsed" : "expanded"} on the next PR you open or reload.`);
 });
 
+autoViewBox.addEventListener("change", async () => {
+  settings.autoView = autoViewBox.checked;
+  await store();
+  await send({ type: "fast-pr:sync" });
+  say(`Auto-viewed files ${settings.autoView ? "are marked viewed" : "are left for you to mark"} on the next PR you open or reload.`);
+});
+
 configInput.addEventListener("input", validate);
 
 $("load-file").addEventListener("click", () => fileInput.click());
@@ -130,6 +138,7 @@ async function init(): Promise<void> {
   settings = normalizeSettings(r[SETTINGS_KEY]);
   debugBox.checked = settings.debug;
   collapseBox.checked = settings.collapseGroups;
+  autoViewBox.checked = settings.autoView;
   configInput.value = settings.localConfig;
   // Already in a tab (options page): the "open in tab" link is pointless.
   if (await chrome.tabs.getCurrent()) $("open-tab").hidden = true;
