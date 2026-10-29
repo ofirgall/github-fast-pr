@@ -3,7 +3,17 @@ import { getAutoRecord, isDebug, lookupConfig } from "./core/storage";
 import { localConfig } from "./shared/config-source";
 import { patchChangesData, type PatchEnv } from "./hook/patch";
 import { parseReviewRequest } from "./hook/review";
-import { RESULT_ATTR, RESULT_EVENT, VIEWED_EVENT, type FastPrResult, type ViewedChange } from "./shared/types";
+import { applyViewedToStore, findPrStore } from "./hook/store";
+import {
+  APPLY_VIEWED_DONE_EVENT,
+  APPLY_VIEWED_EVENT,
+  RESULT_ATTR,
+  RESULT_EVENT,
+  VIEWED_EVENT,
+  type ApplyViewed,
+  type FastPrResult,
+  type ViewedChange,
+} from "./shared/types";
 
 const env: PatchEnv = {
   configFor(id) {
@@ -96,6 +106,31 @@ try {
     if (c) this.addEventListener("load", () => this.status >= 200 && this.status < 300 && emitViewed(c));
     return Reflect.apply(origSend, this, [body]);
   };
+} catch (e) {
+  warn(e);
+}
+
+// Our batch requests (sent from the content script) are invisible to GitHub's UI; apply them
+// to its store, as its own Viewed button does after a request succeeds.
+const STORE_ANCHORS = ["[data-path-digest]", "#diff-comparison-viewer-container", 'button[aria-label="Viewed"]'];
+try {
+  document.addEventListener(APPLY_VIEWED_EVENT, (e) => {
+    let ok = false;
+    try {
+      const req = origParse(String((e as CustomEvent).detail)) as ApplyViewed;
+      for (const sel of STORE_ANCHORS) {
+        const start = document.querySelector(sel);
+        const store = start && findPrStore(start);
+        if (!store) continue;
+        applyViewedToStore(store, req.paths, req.viewed);
+        ok = true;
+        break;
+      }
+    } catch (err) {
+      warn(err);
+    }
+    document.dispatchEvent(new CustomEvent(APPLY_VIEWED_DONE_EVENT, { detail: ok ? "1" : "0" }));
+  });
 } catch (e) {
   warn(e);
 }

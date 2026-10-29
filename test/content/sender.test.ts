@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { sendFileReviews, type SenderDeps } from "../../src/content/sender";
+import { sendFileReviews, sendViewedBatch, type SenderDeps } from "../../src/content/sender";
 
 const id = { owner: "o", repo: "r", number: 3, headSha: "s", baseBranch: "main" };
 
@@ -58,5 +58,40 @@ describe("sendFileReviews", () => {
     const t = mk(() => 200);
     await sendFileReviews(id, [], t.deps);
     expect(t.calls).toHaveLength(0);
+  });
+});
+
+describe("sendViewedBatch", () => {
+  it("marks viewed with POST, concurrency <= 4, no dedupe and no auto record", async () => {
+    const t = mk(() => 200);
+    const each: [string, boolean][] = [];
+    const paths = Array.from({ length: 10 }, (_, i) => `f${i}`);
+    const r = await sendViewedBatch(id, paths, true, t.deps, (p, ok) => each.push([p, ok]));
+    expect(t.calls).toHaveLength(10);
+    expect(t.max()).toBeLessThanOrEqual(4);
+    expect(t.calls[0].url).toBe("/o/r/pull/3/file_review");
+    expect(t.calls[0].init.method).toBe("POST");
+    expect(JSON.parse(t.calls[0].init.body as string)).toEqual({ path: "f0", viewed: "viewed" });
+    expect((t.calls[0].init.headers as any)["GitHub-Verified-Fetch"]).toBe("true");
+    expect(r).toEqual({ ok: paths, failed: [] });
+    expect(each).toHaveLength(10);
+    expect(t.record).not.toHaveBeenCalled();
+    await sendViewedBatch(id, ["f0"], true, t.deps);
+    expect(t.calls).toHaveLength(11);
+  });
+  it("unmarks with DELETE and _method", async () => {
+    const t = mk(() => 200);
+    await sendViewedBatch(id, ["a"], false, t.deps);
+    expect(t.calls[0].init.method).toBe("DELETE");
+    expect(JSON.parse(t.calls[0].init.body as string)).toEqual({ path: "a", _method: "delete" });
+  });
+  it("splits ok and failed, logging failures", async () => {
+    const t = mk((p) => (p === "bad" ? 422 : p === "net" ? new Error("down") : 200));
+    const each: [string, boolean][] = [];
+    const r = await sendViewedBatch(id, ["ok", "bad", "net"], false, t.deps, (p, ok) => each.push([p, ok]));
+    expect(r).toEqual({ ok: ["ok"], failed: ["bad", "net"] });
+    expect(each).toContainEqual(["bad", false]);
+    expect(t.logError).toHaveBeenCalledWith("[fast-pr] failed to mark unviewed: bad (422)");
+    expect(t.logError).toHaveBeenCalledWith("[fast-pr] failed to mark unviewed: net (down)");
   });
 });

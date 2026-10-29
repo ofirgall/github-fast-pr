@@ -90,6 +90,19 @@
 .fast-pr-tree-viewed svg { width: 12px; height: 12px; }
 .fast-pr-tree li:not([data-viewed]) > .fast-pr-tree-row > .fast-pr-tree-viewed { display: none; }
 .fast-pr-tree [aria-expanded="false"] > ul { display: none; }
+.fast-pr-tree-busy { flex: none; width: 10px; height: 10px; border-width: 1.5px; }
+
+/* Tree right-click menu, like Primer's ActionMenu */
+.fast-pr-menu {
+  position: fixed; z-index: 1000; margin: 0; padding: 8px; list-style: none; min-width: 200px;
+  font-size: 14px; color: var(--fgColor-default, #1f2328);
+  background: var(--overlay-bgColor, var(--bgColor-default, #fff));
+  border: 1px solid var(--borderColor-default, #d0d7de); border-radius: 12px;
+  box-shadow: var(--shadow-floating-small, 0 6px 18px rgba(31,35,40,.15));
+}
+.fast-pr-menu-item { padding: 6px 8px; border-radius: 6px; cursor: pointer; white-space: nowrap; line-height: 20px; }
+.fast-pr-menu-item:hover, .fast-pr-menu-item:focus { outline: none; background: var(--control-transparent-bgColor-hover, rgba(208,215,222,.32)); }
+.fast-pr-menu-item:focus-visible { outline: 2px solid var(--focus-outlineColor, #0969da); outline-offset: -2px; }
 
 /* Changes page "N / M viewed", counting files to review */
 .fast-pr-viewed { display: flex; align-items: center; }

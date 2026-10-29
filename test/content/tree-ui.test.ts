@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { buildGroupTree } from "../../src/core/tree";
-import { renderTree, toOrdered, mountTreePanel, setViewed } from "../../src/content/tree-ui";
+import { renderTree, toOrdered, mountTreePanel, setViewed, type TreeDeps } from "../../src/content/tree-ui";
 import { createViewedState } from "../../src/content/viewed-state";
 import { VIEWED_EVENT, type FastPrFile, type FastPrResult } from "../../src/shared/types";
 
@@ -314,6 +314,96 @@ describe("mountTreePanel", () => {
     (document.querySelector('[data-kind="file"] .fast-pr-tree-row') as HTMLElement).click();
     expect(location.hash).toBe("#diff-dg_src_a_x_ts");
     m.destroy();
+  });
+
+  describe("batch viewed menu", () => {
+    const flush = () => new Promise((r) => setTimeout(r, 0));
+    const fakeDeps = (ok: (p: string) => boolean = () => true) => {
+      const sent: { paths: string[]; viewed: boolean }[] = [];
+      const deps: TreeDeps = {
+        send: async (_id, paths, viewed, _d, onEach) => {
+          sent.push({ paths, viewed });
+          await flush();
+          paths.forEach((p) => onEach?.(p, ok(p)));
+          return { ok: paths.filter(ok), failed: paths.filter((p) => !ok(p)) };
+        },
+        applyToGitHub: vi.fn(() => true),
+      };
+      return { deps, sent };
+    };
+    const group = (name: string) =>
+      [...document.querySelectorAll<HTMLElement>('.fast-pr-tree [data-kind="group"]')].find(
+        (g) => g.querySelector(":scope > .fast-pr-tree-row > .fast-pr-tree-name")!.textContent === name,
+      )!;
+    const rightClick = (li: Element) => {
+      const e = new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 10, clientY: 20 });
+      li.querySelector(".fast-pr-tree-row")!.dispatchEvent(e);
+      return e;
+    };
+    const menuItems = () => [...document.querySelectorAll<HTMLElement>('.fast-pr-menu [role="menuitem"]')];
+
+    it("offers only the items that would change something, and not on file rows", () => {
+      nativeTree();
+      const v = createViewedState(result());
+      v.set("src/a/x.ts", true);
+      const m = mountTreePanel(result(), v, fakeDeps().deps);
+      expect(rightClick(group("Src")).defaultPrevented).toBe(true);
+      expect(menuItems().map((i) => i.textContent)).toEqual(["Mark 1 file as viewed", "Mark 1 file as unviewed"]);
+      menuItems()[0].dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      rightClick(group("Ungrouped"));
+      expect(menuItems().map((i) => i.textContent)).toEqual(["Mark 1 file as viewed"]);
+      menuItems()[0].dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      const file = document.querySelector('.fast-pr-tree li[data-path="README.md"]')!;
+      expect(rightClick(file).defaultPrevented).toBe(false);
+      expect(menuItems()).toHaveLength(0);
+      m.destroy();
+    });
+
+    it("opens from the keyboard with Shift+F10", () => {
+      nativeTree();
+      const m = mountTreePanel(result(), createViewedState(result()), fakeDeps().deps);
+      group("Src").dispatchEvent(new KeyboardEvent("keydown", { key: "F10", shiftKey: true, bubbles: true }));
+      expect(menuItems().map((i) => i.textContent)).toEqual(["Mark 2 files as viewed"]);
+      menuItems()[0].dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      m.destroy();
+    });
+
+    it("sends the batch, updates our counts and GitHub's state per file, without remounting", async () => {
+      nativeTree();
+      const { deps, sent } = fakeDeps();
+      const v = createViewedState(result());
+      const m = mountTreePanel(result(), v, deps);
+      const tree = document.querySelector(".fast-pr-tree");
+      rightClick(group("Src"));
+      menuItems()[0].click();
+      expect(group("Src").hasAttribute("data-busy")).toBe(true);
+      expect(group("Src").querySelector(".fast-pr-tree-busy")).not.toBeNull();
+      await flush();
+      await flush();
+      expect(sent).toEqual([{ paths: ["src/a/x.ts", "src/a/y.ts"], viewed: true }]);
+      expect(v.has("src/a/x.ts") && v.has("src/a/y.ts")).toBe(true);
+      expect(group("Src").querySelector(".fast-pr-tree-count")!.textContent).toBe("2/2");
+      expect(group("Src").getAttribute("aria-expanded")).toBe("false");
+      expect(group("Src").hasAttribute("data-busy")).toBe(false);
+      expect(vi.mocked(deps.applyToGitHub).mock.calls).toEqual([[["src/a/x.ts"], true], [["src/a/y.ts"], true]]);
+      expect(document.querySelector(".fast-pr-tree")).toBe(tree);
+      m.destroy();
+    });
+
+    it("leaves failed files alone", async () => {
+      nativeTree();
+      const { deps } = fakeDeps((p) => p !== "src/a/y.ts");
+      const v = createViewedState(result());
+      const m = mountTreePanel(result(), v, deps);
+      rightClick(group("Src"));
+      menuItems()[0].click();
+      await flush();
+      await flush();
+      expect(v.has("src/a/x.ts")).toBe(true);
+      expect(v.has("src/a/y.ts")).toBe(false);
+      expect(vi.mocked(deps.applyToGitHub).mock.calls).toEqual([[["src/a/x.ts"], true]]);
+      m.destroy();
+    });
   });
 
   it("re-attaches when the pane is replaced, and never duplicates", async () => {

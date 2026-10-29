@@ -3,6 +3,8 @@ import { VIEWED_EVENT, type FastPrResult, type ViewedChange } from "../shared/ty
 
 export interface ViewedState {
   has(path: string): boolean;
+  /** Apply a change made outside GitHub's UI (our own batch requests). */
+  set(path: string, viewed: boolean): void;
   /** Called after every change; returns an unsubscribe function. */
   subscribe(fn: () => void): () => void;
   destroy(): void;
@@ -14,6 +16,13 @@ export function createViewedState(result: FastPrResult): ViewedState {
   const subs = new Set<() => void>();
   const id = result.identity;
 
+  const set = (path: string, v: boolean) => {
+    if (!known.has(path) || viewed.has(path) === v) return;
+    if (v) viewed.add(path);
+    else viewed.delete(path);
+    subs.forEach((fn) => fn());
+  };
+
   const onEvent = (e: Event) => {
     let c: ViewedChange;
     try {
@@ -21,16 +30,14 @@ export function createViewedState(result: FastPrResult): ViewedState {
     } catch {
       return;
     }
-    if (c.owner !== id.owner || c.repo !== id.repo || c.number !== id.number || !known.has(c.path)) return;
-    if (viewed.has(c.path) === c.viewed) return;
-    if (c.viewed) viewed.add(c.path);
-    else viewed.delete(c.path);
-    subs.forEach((fn) => fn());
+    if (c.owner !== id.owner || c.repo !== id.repo || c.number !== id.number) return;
+    set(c.path, c.viewed);
   };
   document.addEventListener(VIEWED_EVENT, onEvent);
 
   return {
     has: (path) => viewed.has(path),
+    set,
     subscribe(fn) {
       subs.add(fn);
       return () => subs.delete(fn);

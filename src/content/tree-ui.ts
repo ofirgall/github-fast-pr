@@ -3,6 +3,9 @@ import { buildGroupTree, type TreeNode } from "../core/tree";
 import { getTreeMode, setTreeMode, type TreeMode } from "../core/storage";
 import type { FastPrFile, FastPrResult } from "../shared/types";
 import { el, fmt, icon, isOwnMutation, markUi, throttled } from "./dom";
+import { applyToGitHub } from "./github-viewed";
+import { sendViewedBatch } from "./sender";
+import { openTreeMenu, type MenuItem } from "./tree-menu";
 import type { ViewedState } from "./viewed-state";
 
 export function toOrdered(
@@ -239,6 +242,7 @@ export function renderTree(
   nodes: TreeNode[],
   onSelect: (pathDigest: string, path: string) => void,
   label = "Grouped files",
+  onMenu?: (li: HTMLElement, at: { x: number; y: number }) => void,
 ): HTMLUListElement {
   const root = el("ul", "fast-pr-tree");
   root.setAttribute("role", "tree");
@@ -276,6 +280,14 @@ export function renderTree(
     focusItem(li);
     activate(li);
   });
+  const hasMenu = (li: HTMLElement | null): li is HTMLElement => !!onMenu && !!li && li.dataset.kind !== "file";
+  root.addEventListener("contextmenu", (e) => {
+    const li = (e.target as Element).closest<HTMLElement>('li[role="treeitem"]');
+    if (!hasMenu(li)) return;
+    e.preventDefault();
+    focusItem(li);
+    onMenu!(li, { x: e.clientX, y: e.clientY });
+  });
   root.addEventListener("keydown", (e) => {
     const li = (e.target as Element).closest<HTMLElement>('li[role="treeitem"]');
     if (!li) return;
@@ -283,6 +295,13 @@ export function renderTree(
     const i = vis.indexOf(li as HTMLLIElement);
     const expandable = li.hasAttribute("aria-expanded");
     const open = li.getAttribute("aria-expanded") === "true";
+    if ((e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey)) && hasMenu(li)) {
+      e.preventDefault();
+      e.stopPropagation();
+      const r = (li.querySelector(":scope > .fast-pr-tree-row") ?? li).getBoundingClientRect();
+      onMenu!(li, { x: r.left + 24, y: r.bottom });
+      return;
+    }
     let handled = true;
     switch (e.key) {
       case "ArrowDown": focusItem(vis[i + 1]); break;
@@ -318,7 +337,19 @@ const FILTER_ROW = "#diff-file-tree-filter";
 
 export interface Mounted { destroy(): void }
 
-export function mountTreePanel(result: FastPrResult, viewed: ViewedState): Mounted {
+export interface TreeDeps {
+  send: typeof sendViewedBatch;
+  /** Update GitHub's own in-page viewed state; false when its store can't be reached. */
+  applyToGitHub: (paths: string[], viewed: boolean) => boolean;
+}
+
+let warnedStore = false;
+
+export function mountTreePanel(
+  result: FastPrResult,
+  viewed: ViewedState,
+  deps: TreeDeps = { send: sendViewedBatch, applyToGitHub },
+): Mounted {
   const nodes = buildGroupTree(toOrdered(result.files));
   const panel = el("div", "fast-pr-tree-panel");
   markUi(panel);
@@ -328,9 +359,47 @@ export function mountTreePanel(result: FastPrResult, viewed: ViewedState): Mount
   toggle.classList.add("fast-pr-tip");
   markUi(toggle);
   toggle.append(icon(P.zap));
-  const tree = renderTree(nodes, (digest) => {
-    location.hash = "diff-" + digest;
-  });
+  let alive = true;
+  const onSent = (path: string, ok: boolean, v: boolean) => {
+    if (!ok || !alive) return;
+    viewed.set(path, v);
+    if (!deps.applyToGitHub([path], v) && !warnedStore) {
+      warnedStore = true;
+      console.warn("[fast-pr] could not update GitHub's viewed state in place; refresh to see it");
+    }
+  };
+  const runBatch = async (li: HTMLElement, paths: string[], v: boolean) => {
+    li.setAttribute("data-busy", "");
+    const spin = el("span", "fast-pr-spinner fast-pr-tree-busy");
+    spin.setAttribute("role", "status");
+    spin.title = `Marking ${fmt(paths.length)} files as ${v ? "viewed" : "unviewed"}`;
+    li.querySelector(":scope > .fast-pr-tree-row")?.append(spin);
+    try {
+      await deps.send(result.identity, paths, v, undefined, (p, ok) => onSent(p, ok, v));
+    } finally {
+      spin.remove();
+      li.removeAttribute("data-busy");
+    }
+  };
+  const onMenu = (li: HTMLElement, at: { x: number; y: number }) => {
+    if (li.hasAttribute("data-busy")) return;
+    const paths = [...li.querySelectorAll<HTMLElement>('li[data-kind="file"]')].map((f) => f.dataset.path ?? "");
+    const toView = paths.filter((p) => !viewed.has(p));
+    const toUnview = paths.filter((p) => viewed.has(p));
+    const items: MenuItem[] = [];
+    const n = (k: number) => `${fmt(k)} file${k === 1 ? "" : "s"}`;
+    if (toView.length) items.push({ label: `Mark ${n(toView.length)} as viewed`, onSelect: () => void runBatch(li, toView, true) });
+    if (toUnview.length) items.push({ label: `Mark ${n(toUnview.length)} as unviewed`, onSelect: () => void runBatch(li, toUnview, false) });
+    if (items.length) openTreeMenu(li, at, items);
+  };
+  const tree = renderTree(
+    nodes,
+    (digest) => {
+      location.hash = "diff-" + digest;
+    },
+    undefined,
+    onMenu,
+  );
   panel.append(toolbar, tree);
   setViewed(tree, viewed.has);
   const unsubscribe = viewed.subscribe(() => setViewed(tree, viewed.has));
@@ -381,6 +450,7 @@ export function mountTreePanel(result: FastPrResult, viewed: ViewedState): Mount
 
   return {
     destroy() {
+      alive = false;
       mo.disconnect();
       sched.cancel();
       unsubscribe();

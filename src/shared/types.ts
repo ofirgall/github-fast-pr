@@ -40,3 +40,15 @@ export interface ViewedChange {
   path: string;
   viewed: boolean;
 }
+
+/**
+ * Content script -> MAIN world: our own requests changed these files on the server; update
+ * GitHub's in-page state to match. Detail is JSON `{ paths, viewed }`. The MAIN world answers
+ * synchronously with APPLY_VIEWED_DONE_EVENT, detail "1" when GitHub's store was updated.
+ */
+export const APPLY_VIEWED_EVENT = "fast-pr:apply-viewed";
+export const APPLY_VIEWED_DONE_EVENT = "fast-pr:apply-viewed-done";
+export interface ApplyViewed {
+  paths: string[];
+  viewed: boolean;
+}
