@@ -25,6 +25,8 @@ function mk(map: Record<string, { status: number; body?: string }>, cached: Cach
 }
 const HEAD = "/o/r/raw/abc/.github/pr-groups.json";
 const BASE = "/o/r/raw/release/1.x/.github/pr-groups.json";
+const HEAD_C = `${HEAD}c`;
+const BASE_C = `${BASE}c`;
 const ATTR_HEAD = "/o/r/raw/abc/.gitattributes";
 const ATTR_BASE = "/o/r/raw/release/1.x/.gitattributes";
 const ATTRS = "*.pb.go linguist-generated\n*.md text\n";
@@ -40,10 +42,22 @@ describe("resolveConfig", () => {
   it("falls back to base on head 404, encoding segments", async () => {
     const t = mk({ [HEAD]: { status: 404 }, [BASE]: { status: 200, body: GOOD } });
     expect((await resolveConfig(id, t.deps)).status).toBe("ok");
-    expect(t.urls.slice(0, 2)).toEqual([HEAD, BASE]);
+    expect(t.urls.slice(0, 3)).toEqual([HEAD, HEAD_C, BASE]);
     const t2 = mk({});
     await resolveConfig({ ...id, baseBranch: "feat/a b#c" }, t2.deps);
-    expect(t2.urls[1]).toBe("/o/r/raw/feat/a%20b%23c/.github/pr-groups.json");
+    expect(t2.urls[2]).toBe("/o/r/raw/feat/a%20b%23c/.github/pr-groups.json");
+  });
+  it("reads pr-groups.jsonc when there is no pr-groups.json at that ref", async () => {
+    const t = mk({ [HEAD_C]: { status: 200, body: '{"groups": [], // c\n}' }, [BASE]: { status: 200, body: GOOD } });
+    expect(await resolveConfig(id, t.deps)).toMatchObject({ status: "ok", config: { groups: [] } });
+    expect(t.urls.slice(0, 2)).toEqual([HEAD, HEAD_C]);
+  });
+  it("prefers pr-groups.json and names the file it read in errors", async () => {
+    const both = mk({ [HEAD]: { status: 200, body: GOOD }, [HEAD_C]: { status: 200, body: "{}" } });
+    expect((await resolveConfig(id, both.deps)).status).toBe("ok");
+    const bad = mk({ [BASE_C]: { status: 200, body: "{" } });
+    expect((await resolveConfig(id, bad.deps)).status).toBe("invalid");
+    expect(bad.logError.mock.calls[0][0]).toMatch(/^\[fast-pr\] \.github\/pr-groups\.jsonc: /);
   });
   it("adds .gitattributes generated rules to the config, changing its hash", async () => {
     const plain = await resolveConfig(id, mk({ [HEAD]: { status: 200, body: GOOD } }).deps);

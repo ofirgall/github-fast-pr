@@ -35,6 +35,8 @@ export type ParseResult =
   | { ok: false; error: string };
 
 export const CONFIG_PATH = ".github/pr-groups.json";
+/** Tried in order at each ref. */
+export const CONFIG_PATHS = [CONFIG_PATH, ".github/pr-groups.jsonc"] as const;
 
 export function hashString(s: string): string {
   let h = 0x811c9dc5;

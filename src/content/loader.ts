@@ -1,4 +1,4 @@
-import { CONFIG_PATH, configHash, hashString, parseConfig, withGenerated } from "../core/config";
+import { CONFIG_PATHS, configHash, hashString, parseConfig, withGenerated } from "../core/config";
 import { GITATTRIBUTES_PATH, parseGenerated } from "../core/gitattributes";
 import type { PrIdentity } from "../core/route";
 import { getConfigBySha, putConfig, type CachedConfig } from "../core/storage";
@@ -35,9 +35,19 @@ async function fetchRaw(deps: LoaderDeps, id: PrIdentity, ref: string, path: str
   return res.text();
 }
 
-/** The file at the head commit, else on the base branch; null when neither has it. */
-async function fetchAtHeadOrBase(deps: LoaderDeps, id: PrIdentity, path: string): Promise<string | null> {
-  return (await fetchRaw(deps, id, id.headSha, path)) ?? fetchRaw(deps, id, encodePath(id.baseBranch), path);
+/** The first of `paths` at the head commit, else on the base branch; null when none exists. */
+async function fetchAtHeadOrBase(
+  deps: LoaderDeps,
+  id: PrIdentity,
+  paths: readonly string[],
+): Promise<{ path: string; text: string } | null> {
+  for (const ref of [id.headSha, encodePath(id.baseBranch)]) {
+    for (const path of paths) {
+      const text = await fetchRaw(deps, id, ref, path);
+      if (text !== null) return { path, text };
+    }
+  }
+  return null;
 }
 
 /**
@@ -49,22 +59,22 @@ async function fetchAtHeadOrBase(deps: LoaderDeps, id: PrIdentity, path: string)
 export async function resolveConfig(id: PrIdentity, deps: LoaderDeps = defaultDeps()): Promise<CachedConfig> {
   const hit = deps.get(id);
   if (hit) return hit;
-  const text = await fetchAtHeadOrBase(deps, id, CONFIG_PATH);
-  const attrs = await fetchAtHeadOrBase(deps, id, GITATTRIBUTES_PATH);
-  const rules = attrs === null ? undefined : parseGenerated(attrs);
+  const file = await fetchAtHeadOrBase(deps, id, CONFIG_PATHS);
+  const attrs = await fetchAtHeadOrBase(deps, id, [GITATTRIBUTES_PATH]);
+  const rules = attrs === null ? undefined : parseGenerated(attrs.text);
   const at = deps.now();
   let value: CachedConfig;
-  if (text === null) {
+  if (file === null) {
     const config = withGenerated({ groups: [] }, rules);
     value = config.generated ? { status: "ok", config, hash: configHash(config), at } : { status: "none", hash: "none", at };
   } else {
-    const r = parseConfig(text);
+    const r = parseConfig(file.text);
     if (r.ok) {
       const config = withGenerated(r.config, rules);
       value = { status: "ok", config, hash: configHash(config), at };
     } else {
-      value = { status: "invalid", hash: hashString(text), at, error: r.error };
-      deps.logError(`[fast-pr] ${CONFIG_PATH}: ${r.error}`);
+      value = { status: "invalid", hash: hashString(file.text), at, error: r.error };
+      deps.logError(`[fast-pr] ${file.path}: ${r.error}`);
     }
   }
   deps.put(id, value);
