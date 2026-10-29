@@ -94,6 +94,15 @@
 .fast-pr-viewed-num { font-weight: 500; color: var(--fgColor-default, #1f2328); }
 .fast-pr-viewed-orig { font-size: 10px; }
 
+/* Instant tooltip, styled like GitHub's (Primer) tooltips. */
+.fast-pr-tip { position: relative; }
+.fast-pr-tip:hover::after {
+  content: attr(data-tip); position: absolute; top: calc(100% + 6px); right: 0; z-index: 1000;
+  padding: 4px 8px; border-radius: 6px; white-space: nowrap; pointer-events: none;
+  font-size: 12px; font-weight: 400; line-height: 1.5;
+  color: var(--fgColor-onEmphasis, #fff); background: var(--bgColor-emphasis, #25292e);
+}
+
 /* Conversation diffstat */
 .fast-pr-diffstat { display: inline-flex; flex-direction: column; line-height: 1.15; position: relative; }
 .fast-pr-ds-top { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; }

@@ -56,6 +56,12 @@ function ring(viewed: number, total: number): SVGSVGElement {
   return svg;
 }
 
+/** Instant CSS tooltip (a native title takes about a second to show). */
+function tip(e: HTMLElement, text: string): void {
+  e.classList.add("fast-pr-tip");
+  e.dataset.tip = text;
+}
+
 export function buildViewedProgress(
   adjusted: { viewed: number; total: number },
   native: { viewed: number; total: number },
@@ -63,7 +69,6 @@ export function buildViewedProgress(
   const w = el("div", "fast-pr-viewed");
   markUi(w);
   w.dataset.sig = `${adjusted.viewed}/${adjusted.total}/${native.viewed}/${native.total}`;
-  w.title = "Files to review viewed (all files, including auto-viewed, in parentheses)";
   const text = el("span", "fast-pr-viewed-text");
   text.setAttribute("aria-hidden", "true");
   // Files to review on top; GitHub's full count below, smaller (like the +/- summary).
@@ -75,7 +80,11 @@ export function buildViewedProgress(
     " ",
     el("span", "fast-pr-viewed-label", "viewed"),
   );
-  text.append(top, el("span", "fast-pr-viewed-orig", `(${fmt(native.viewed)} / ${fmt(native.total)})`));
+  tip(top, "Files to review viewed (auto-viewed files left out)");
+  const orig = el("span", "fast-pr-viewed-orig", `(${fmt(native.viewed)} / ${fmt(native.total)})`);
+  const auto = native.total - adjusted.total;
+  tip(orig, `All files: ${fmt(native.viewed)} of ${fmt(native.total)} viewed, including ${fmt(auto)} auto-viewed`);
+  text.append(top, orig);
   w.append(
     ring(adjusted.viewed, adjusted.total),
     text,

@@ -44,6 +44,9 @@ describe("viewed progress", () => {
     expect(ours().classList.contains("gh-cls")).toBe(true);
     expect(ours().querySelector(".fast-pr-viewed-text")!.textContent).toBe("1 / 2 viewed(3 / 4)");
     expect(ours().querySelector(".fast-pr-viewed-orig")!.textContent).toBe("(3 / 4)");
+    expect(ours().querySelector<HTMLElement>(".fast-pr-viewed-orig")!.dataset.tip).toBe(
+      "All files: 3 of 4 viewed, including 2 auto-viewed",
+    );
     nat.querySelector(".sr-only")!.textContent = "4 of 4 files viewed";
     await new Promise((r) => setTimeout(r, 80));
     expect(ours().querySelector(".fast-pr-viewed-text")!.textContent).toBe("2 / 2 viewed(4 / 4)");
