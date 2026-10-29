@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { resolveConfig, shouldReload, reloadGuardKey, type LoaderDeps } from "../../src/content/loader";
+import { configRefs, resolveConfig, shouldReload, reloadGuardKey, type LoaderDeps } from "../../src/content/loader";
 import type { CachedConfig } from "../../src/core/storage";
 import type { PrIdentity } from "../../src/core/route";
 
@@ -25,6 +25,8 @@ function mk(map: Record<string, { status: number; body?: string }>, cached: Cach
 }
 const HEAD = "/o/r/raw/abc/.github/pr-groups.json";
 const BASE = "/o/r/raw/release/1.x/.github/pr-groups.json";
+const cfg = (ref: string) => `/o/r/raw/${ref}/.github/pr-groups.json`;
+const attr = (ref: string) => `/o/r/raw/${ref}/.gitattributes`;
 const HEAD_C = `${HEAD}c`;
 const BASE_C = `${BASE}c`;
 const ATTR_HEAD = "/o/r/raw/abc/.gitattributes";
@@ -36,8 +38,20 @@ describe("resolveConfig", () => {
     const t = mk({ [HEAD]: { status: 200, body: GOOD } });
     const c = await resolveConfig(id, t.deps);
     expect(c.status).toBe("ok");
-    expect(t.urls).toEqual([HEAD, ATTR_HEAD, ATTR_BASE]);
+    expect(t.urls).toEqual([HEAD, ATTR_HEAD, ATTR_BASE, attr("main"), attr("master")]);
     expect(t.put).toHaveBeenCalledWith(id, c);
+  });
+  it("falls back to main, then master, after the base branch", async () => {
+    const t = mk({ [cfg("master")]: { status: 200, body: GOOD } });
+    expect((await resolveConfig(id, t.deps)).status).toBe("ok");
+    expect(t.urls.slice(0, 8)).toEqual([HEAD, HEAD_C, BASE, BASE_C, cfg("main"), `${cfg("main")}c`, cfg("master"), ATTR_HEAD]);
+    const m = mk({ [cfg("main")]: { status: 200, body: GOOD }, [cfg("master")]: { status: 200, body: "{" } });
+    expect((await resolveConfig(id, m.deps)).status).toBe("ok");
+  });
+  it("tries a branch once when the base is main or master", () => {
+    expect(configRefs({ ...id, baseBranch: "main" })).toEqual(["abc", "main", "master"]);
+    expect(configRefs({ ...id, baseBranch: "master" })).toEqual(["abc", "master", "main"]);
+    expect(configRefs(id)).toEqual(["abc", "release/1.x", "main", "master"]);
   });
   it("falls back to base on head 404, encoding segments", async () => {
     const t = mk({ [HEAD]: { status: 404 }, [BASE]: { status: 200, body: GOOD } });

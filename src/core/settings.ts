@@ -18,8 +18,9 @@ export const EXPAND_GROUPS_KEY = "fast-pr:expand-groups";
 export const LOCAL_CONFIG_KEY = "fast-pr:local-config";
 // Per-repo override keys from earlier builds; always removed.
 const LEGACY_PREFIX = "fast-pr:dev-config:";
-// Current config cache prefixes, then those of builds before .gitattributes support.
-const CACHE_PREFIXES = ["fast-pr:cfg2:", "fast-pr:cfg2-pr:", "fast-pr:cfg:", "fast-pr:cfg-pr:"];
+// Config caches of earlier builds, whose results may miss later lookup rules; always removed.
+const LEGACY_CACHE_PREFIXES = ["fast-pr:cfg:", "fast-pr:cfg-pr:", "fast-pr:cfg2:", "fast-pr:cfg2-pr:"];
+const CACHE_PREFIXES = ["fast-pr:cfg3:", "fast-pr:cfg3-pr:", ...LEGACY_CACHE_PREFIXES];
 
 export function normalizeSettings(raw: unknown): Settings {
   const out: Settings = { ...DEFAULT_SETTINGS };
@@ -34,7 +35,9 @@ export function normalizeSettings(raw: unknown): Settings {
 /** localStorage writes that make the page match `s`, given the page's current keys. */
 export function mirrorPlan(s: Settings, existingKeys: string[]): { set: [string, string][]; remove: string[] } {
   const set: [string, string][] = [];
-  const remove = existingKeys.filter((k) => k.startsWith(LEGACY_PREFIX));
+  const remove = existingKeys.filter(
+    (k) => k.startsWith(LEGACY_PREFIX) || LEGACY_CACHE_PREFIXES.some((p) => k.startsWith(p)),
+  );
   const toggle = (key: string, value: string | null) => {
     if (value !== null) set.push([key, value]);
     else if (existingKeys.includes(key)) remove.push(key);

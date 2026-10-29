@@ -35,13 +35,21 @@ async function fetchRaw(deps: LoaderDeps, id: PrIdentity, ref: string, path: str
   return res.text();
 }
 
-/** The first of `paths` at the head commit, else on the base branch; null when none exists. */
-async function fetchAtHeadOrBase(
+/** Branches tried after the head commit and the base branch. */
+export const FALLBACK_BRANCHES = ["main", "master"];
+
+/** Head commit, base branch, then the fallback branches, without repeats. */
+export function configRefs(id: PrIdentity): string[] {
+  return [...new Set([id.headSha, ...[id.baseBranch, ...FALLBACK_BRANCHES].map(encodePath)])];
+}
+
+/** The first of `paths` at the first ref of `configRefs` that has one; null when none does. */
+async function fetchFirst(
   deps: LoaderDeps,
   id: PrIdentity,
   paths: readonly string[],
 ): Promise<{ path: string; text: string } | null> {
-  for (const ref of [id.headSha, encodePath(id.baseBranch)]) {
+  for (const ref of configRefs(id)) {
     for (const path of paths) {
       const text = await fetchRaw(deps, id, ref, path);
       if (text !== null) return { path, text };
@@ -51,16 +59,16 @@ async function fetchAtHeadOrBase(
 }
 
 /**
- * Resolve the config for a head commit: cached by SHA (final), else head SHA,
- * else base branch. The root .gitattributes' linguist-generated rules are added as
+ * Resolve the config for a head commit: cached by SHA (final), else the first ref
+ * of configRefs that has one. The root .gitattributes' linguist-generated rules are added as
  * the Generated group, even when there is no pr-groups config. Writes the cache.
  * Throws on transport errors (nothing cached).
  */
 export async function resolveConfig(id: PrIdentity, deps: LoaderDeps = defaultDeps()): Promise<CachedConfig> {
   const hit = deps.get(id);
   if (hit) return hit;
-  const file = await fetchAtHeadOrBase(deps, id, CONFIG_PATHS);
-  const attrs = await fetchAtHeadOrBase(deps, id, [GITATTRIBUTES_PATH]);
+  const file = await fetchFirst(deps, id, CONFIG_PATHS);
+  const attrs = await fetchFirst(deps, id, [GITATTRIBUTES_PATH]);
   const rules = attrs === null ? undefined : parseGenerated(attrs.text);
   const at = deps.now();
   let value: CachedConfig;

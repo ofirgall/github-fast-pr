@@ -46,7 +46,7 @@ Auto-viewed groups really mark files viewed on GitHub, as if you clicked Viewed.
 
 ## Config: `.github/pr-groups.json`
 
-Read from the PR head commit, falling back to the base branch. `.github/pr-groups.jsonc` is read when there is no `pr-groups.json` at that commit or branch. Both are JSONC: `//` and `/* */` comments and trailing commas are allowed.
+Read from the first of these that has it: the PR head commit, the PR's base branch, `main`, `master`. `.github/pr-groups.jsonc` is read when there is no `pr-groups.json` at that commit or branch. Both are JSONC: `//` and `/* */` comments and trailing commas are allowed.
 
 ```json
 {
@@ -68,7 +68,7 @@ Read from the PR head commit, falling back to the base branch. `.github/pr-group
 
 ### `.gitattributes`
 
-Files marked `linguist-generated` in the root `.gitattributes` (head commit, falling back to the base branch) go to an auto-viewed "Generated" group, also in repos without `pr-groups.json`. Patterns follow git's rules, and the last matching line wins.
+Files marked `linguist-generated` in the root `.gitattributes` (looked up the same way: head commit, base branch, `main`, `master`) go to an auto-viewed "Generated" group, also in repos without `pr-groups.json`. Patterns follow git's rules, and the last matching line wins.
 
 ### Assignment and order
 
