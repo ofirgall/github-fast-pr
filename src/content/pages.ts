@@ -13,6 +13,7 @@ import { parseResult, readResultRaw, resultMatchesPage } from "./result";
 import type { PageInfo } from "./router";
 import { sendFileReviews } from "./sender";
 import { mountTreePanel, type Mounted } from "./tree-ui";
+import { mountViewedProgress } from "./viewed-ui";
 
 export type Teardown = () => void;
 
@@ -94,6 +95,7 @@ export function startChangesPage(page: PageInfo): Teardown {
     if (result.configStatus !== "ok") return;
     try {
       ui.push(mountDecorations(result), mountTreePanel(result));
+      if (result.fullDiff && result.files.some((f) => f.autoViewed)) ui.push(mountViewedProgress(result));
     } catch (e) {
       console.warn("[fast-pr] UI error", e);
     }

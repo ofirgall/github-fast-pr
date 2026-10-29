@@ -36,7 +36,8 @@ describe("renderTree", () => {
     expect(ul.getAttribute("aria-label")).toBe("Grouped files");
     const groups = [...ul.querySelectorAll<HTMLElement>('[data-kind="group"]')];
     expect(groups.map((g) => g.querySelector(".fast-pr-tree-name")!.textContent)).toEqual(["Src", "Ungrouped", "Gen"]);
-    expect(groups.every((g) => g.getAttribute("aria-expanded") === "true")).toBe(true);
+    // The auto-viewed group (Gen) starts collapsed.
+    expect(groups.map((g) => g.getAttribute("aria-expanded"))).toEqual(["true", "true", "false"]);
     expect(ul.querySelector('[data-kind="dir"] .fast-pr-tree-name')!.textContent).toBe("src/a");
     expect(ul.querySelectorAll(".fast-pr-tree-auto")).toHaveLength(1);
     expect(ul.querySelectorAll('li[tabindex="0"]')).toHaveLength(1);
@@ -55,7 +56,14 @@ describe("renderTree", () => {
     }
     const group = ul.querySelector<HTMLElement>('[data-kind="group"]')!;
     expect(chevPath(group).startsWith(CHEV_DOWN)).toBe(true);
-    expect(group.querySelector(":scope > .fast-pr-tree-row > .fast-pr-tree-icon")).toBeNull();
+    const groupIcon = group.querySelector(":scope > .fast-pr-tree-row > .fast-pr-tree-icon")!;
+    expect(groupIcon.querySelector("path")!.getAttribute("d")!.startsWith("M7.122")).toBe(true);
+    expect(groupIcon.classList.contains("fast-pr-group-auto")).toBe(false);
+    const autoGroup = [...ul.querySelectorAll<HTMLElement>('[data-kind="group"]')].find((g) => g.textContent!.includes("Gen"))!;
+    expect(autoGroup.querySelector(":scope > .fast-pr-tree-row > .fast-pr-tree-icon")!.classList.contains("fast-pr-group-auto")).toBe(true);
+    expect(autoGroup.getAttribute("aria-expanded")).toBe("false");
+    expect(chevPath(autoGroup).startsWith(CHEV_RIGHT)).toBe(true);
+    expect(group.getAttribute("aria-expanded")).toBe("true");
     expect(group.querySelector(":scope > .fast-pr-tree-row > .fast-pr-tree-count")!.textContent).toBe("2");
     expect(group.querySelector(":scope > .fast-pr-tree-row > .fast-pr-tree-count svg")).not.toBeNull();
     const single = ul.querySelectorAll<HTMLElement>('[data-kind="group"]')[1];
