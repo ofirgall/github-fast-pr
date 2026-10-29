@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { compileConfig } from "../src/core/config";
-import { computeDiffstat } from "../src/core/diffstat";
+import { computeDiffstat, tallyDiffstat } from "../src/core/diffstat";
+import { orderFiles } from "../src/core/grouping";
 
 const cfg = (auto: boolean) =>
   compileConfig({ groups: [
@@ -46,5 +47,21 @@ describe("computeDiffstat", () => {
     const d = computeDiffstat([], cfg(true));
     expect(d.rows).toEqual([]);
     expect(d.adjusted).toEqual({ added: 0, deleted: 0, files: 0 });
+  });
+});
+
+describe("tallyDiffstat", () => {
+  it("matches computeDiffstat for files already in group order", () => {
+    const files = [
+      { path: "gen/a.ts", linesAdded: 8, linesDeleted: 2 },
+      { path: "misc.txt", linesAdded: 3, linesDeleted: 0 },
+      { path: "src/a.ts", linesAdded: 2, linesDeleted: 1 },
+    ];
+    const groups = cfg(true);
+    const ordered = orderFiles(files, groups).map(({ file, group }) => ({
+      file,
+      group: group && { index: group.index, name: group.name, autoViewed: group.autoViewed },
+    }));
+    expect(tallyDiffstat(ordered)).toEqual(computeDiffstat(files, groups));
   });
 });

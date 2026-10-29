@@ -18,13 +18,21 @@ export interface Diffstat {
   rows: DiffstatRow[];
 }
 
+/** The group a file landed in; only what the counts need. */
+export interface GroupRef { index: number; name: string; autoViewed: boolean }
+
 export function computeDiffstat(files: DiffFile[], groups: CompiledGroup[]): Diffstat {
+  return tallyDiffstat(orderFiles(files, groups));
+}
+
+/** Counts for files already in group order (as the changes page hook publishes them). */
+export function tallyDiffstat(ordered: Iterable<{ file: DiffFile; group: GroupRef | null }>): Diffstat {
   const original: DiffTotals = { added: 0, deleted: 0, files: 0 };
   const adjusted: DiffTotals = { added: 0, deleted: 0, files: 0 };
   const rows: DiffstatRow[] = [];
   let current: DiffstatRow | null = null;
   let currentKey: string | null = null;
-  for (const { file, group } of orderFiles(files, groups)) {
+  for (const { file, group } of ordered) {
     original.added += file.linesAdded;
     original.deleted += file.linesDeleted;
     original.files += 1;

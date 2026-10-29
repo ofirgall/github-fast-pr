@@ -1,9 +1,9 @@
 import { compileConfig } from "../core/config";
-import { computeDiffstat } from "../core/diffstat";
+import { computeDiffstat, tallyDiffstat } from "../core/diffstat";
 import { findChangesRoute, prIdentity, type PrIdentity } from "../core/route";
 import { getConfigByPr, getConfigBySha, lookupConfig, type CachedConfig } from "../core/storage";
 import { localConfig } from "../shared/config-source";
-import { RESULT_EVENT } from "../shared/types";
+import { RESULT_EVENT, type FastPrFile } from "../shared/types";
 import { mountDecorations } from "./decorations";
 import { createDiffstatController } from "./diffstat-ui";
 import { debounced } from "./dom";
@@ -27,10 +27,22 @@ function logDevInvalid(id: PrIdentity, cfg: CachedConfig | null): void {
   console.error(`[fast-pr] local config (Fast PR menu): ${cfg.error}`);
 }
 
+/** Header counts from the hook's result, which already holds each file's group. */
+function resultDiffstat(files: FastPrFile[]) {
+  return tallyDiffstat(
+    files.map((f) => ({
+      file: f,
+      group: f.groupIndex === null ? null : { index: f.groupIndex, name: f.group ?? "", autoViewed: f.autoViewed },
+    })),
+  );
+}
+
 export function startChangesPage(page: PageInfo): Teardown {
   let ui: Mounted[] = [];
   let lastRaw: string | null = null;
   let disposed = false;
+  // A new push re-runs the hook, so header changes need no refetch here.
+  const diffstat = createDiffstatController(() => {});
 
   const clear = () => {
     ui.forEach((u) => u.destroy());
@@ -72,8 +84,13 @@ export function startChangesPage(page: PageInfo): Teardown {
     lastRaw = raw;
     clear();
     const result = parseResult(raw);
-    if (!result || !resultMatchesPage(result, page)) return;
+    if (!result || !resultMatchesPage(result, page)) {
+      diffstat.set(null);
+      return;
+    }
     void checkConfig(result);
+    // A commit-range view lists only some files, so its counts would not match the PR totals.
+    diffstat.set(result.configStatus === "ok" && result.fullDiff ? resultDiffstat(result.files) : null);
     if (result.configStatus !== "ok") return;
     try {
       ui.push(mountDecorations(result), mountTreePanel(result));
@@ -97,6 +114,7 @@ export function startChangesPage(page: PageInfo): Teardown {
     document.removeEventListener(RESULT_EVENT, onEvent);
     mo.disconnect();
     clear();
+    diffstat.destroy();
   };
 }
 
