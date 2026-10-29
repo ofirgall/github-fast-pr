@@ -88,7 +88,22 @@
 .fast-pr-tree-comments > span { color: var(--fgColor-default, #1f2328); font-weight: 600; }
 .fast-pr-tree-viewed { display: inline-flex; align-items: center; flex: none; color: var(--fgColor-success, #1a7f37); }
 .fast-pr-tree-viewed svg { width: 12px; height: 12px; }
-.fast-pr-tree li:not([data-viewed]) > .fast-pr-tree-row > .fast-pr-tree-viewed { display: none; }
+:is(.fast-pr-tree-name, .fast-pr-pill) + .fast-pr-tree-viewed { margin-left: auto; }
+.fast-pr-tree li[aria-expanded="true"] > .fast-pr-tree-row > .fast-pr-tree-lines-collapsed { display: none; }
+.fast-pr-tree li[aria-expanded="true"] > .fast-pr-tree-row > .fast-pr-tree-lines-collapsed + .fast-pr-tree-viewed {
+  border-left: 0; padding-left: 0; margin-left: auto;
+}
+.fast-pr-tree li:not([data-viewed]):not([data-done]) > .fast-pr-tree-row > .fast-pr-tree-viewed { display: none; }
+/* Viewed files and fully viewed folders/groups fade back; their check or count stays coloured. */
+.fast-pr-tree :is(li[data-viewed], li[data-done]) > .fast-pr-tree-row > :is(.fast-pr-tree-name, .fast-pr-tree-icon) {
+  color: var(--fgColor-disabled, #818b98);
+}
+.fast-pr-tree :is(li[data-viewed], li[data-done]) > .fast-pr-tree-row > .fast-pr-tree-lines > .fast-pr-add {
+  color: color-mix(in srgb, var(--fgColor-success, #1a7f37) 20%, var(--fgColor-disabled, #818b98));
+}
+.fast-pr-tree :is(li[data-viewed], li[data-done]) > .fast-pr-tree-row > .fast-pr-tree-lines > .fast-pr-del {
+  color: color-mix(in srgb, var(--fgColor-danger, #d1242f) 20%, var(--fgColor-disabled, #818b98));
+}
 .fast-pr-tree [aria-expanded="false"] > ul { display: none; }
 .fast-pr-tree-busy { flex: none; width: 10px; height: 10px; border-width: 1.5px; }
 

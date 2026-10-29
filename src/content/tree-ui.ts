@@ -103,6 +103,14 @@ function linesBadge(n: TreeNode): HTMLElement {
   return s;
 }
 
+/** Green check, only visible while its row has data-viewed or data-done (see setViewed). */
+function viewedMark(title: string): HTMLElement {
+  const mark = el("span", "fast-pr-tree-viewed");
+  mark.title = title;
+  mark.append(icon(P.check));
+  return mark;
+}
+
 function buildItem(node: TreeNode, level: number): HTMLLIElement {
   const li = el("li");
   li.setAttribute("role", "treeitem");
@@ -120,11 +128,13 @@ function buildItem(node: TreeNode, level: number): HTMLLIElement {
     li.dataset.digest = node.pathDigest;
     li.dataset.path = node.path;
     li.title = node.path;
-    // The check is only visible while the row has data-viewed (see setViewed).
-    const mark = el("span", "fast-pr-tree-viewed");
-    mark.title = node.autoViewed ? "Auto-viewed" : "Viewed";
-    mark.append(icon(P.check));
-    row.append(chevSlot(false, false), leadSlot(node, false), el("span", "fast-pr-tree-name", node.name), linesBadge(node), mark);
+    row.append(
+      chevSlot(false, false),
+      leadSlot(node, false),
+      el("span", "fast-pr-tree-name", node.name),
+      linesBadge(node),
+      viewedMark(node.autoViewed ? "Auto-viewed" : "Viewed"),
+    );
     li.append(row);
   } else {
     li.dataset.kind = node.kind;
@@ -135,7 +145,7 @@ function buildItem(node: TreeNode, level: number): HTMLLIElement {
     row.append(leadSlot(node, open));
     row.append(el("span", "fast-pr-tree-name", node.name));
     if (node.kind === "group" && node.autoViewed) row.append(el("span", "fast-pr-pill", "auto-viewed"));
-    // With a single file inside, its own row already shows the lines and count.
+    // With a single file inside, its own row shows the lines while this one is open.
     const files = countFiles(node);
     if (files > 1) {
       row.append(linesBadge(node));
@@ -143,6 +153,10 @@ function buildItem(node: TreeNode, level: number): HTMLLIElement {
       count.title = `${fmt(files)} files`;
       count.append(icon(P.file), el("span", undefined, fmt(files)));
       row.append(count);
+    } else {
+      const lines = linesBadge(node);
+      lines.classList.add("fast-pr-tree-lines-collapsed");
+      row.append(lines, viewedMark("Viewed"));
     }
     li.append(row);
     const ul = el("ul");

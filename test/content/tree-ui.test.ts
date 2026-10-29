@@ -71,7 +71,11 @@ describe("renderTree", () => {
     const single = ul.querySelectorAll<HTMLElement>('[data-kind="group"]')[1];
     expect(single.textContent).toContain("Ungrouped");
     expect(single.querySelector(":scope > .fast-pr-tree-row > .fast-pr-tree-count")).toBeNull();
-    expect(single.querySelector(":scope > .fast-pr-tree-row > .fast-pr-tree-lines")).toBeNull();
+    // Lines only show while collapsed (CSS); the file row has them otherwise.
+    const singleLines = single.querySelector(":scope > .fast-pr-tree-row > .fast-pr-tree-lines")!;
+    expect(singleLines.classList.contains("fast-pr-tree-lines-collapsed")).toBe(true);
+    expect(singleLines.textContent).toBe("+1");
+    expect(group.querySelector(":scope > .fast-pr-tree-row > .fast-pr-tree-lines-collapsed")).toBeNull();
     const dir = ul.querySelector<HTMLElement>('[data-kind="dir"]')!;
     const dirPath = () => dir.querySelector(":scope > .fast-pr-tree-row > .fast-pr-tree-icon path")!.getAttribute("d")!;
     expect(dirPath().startsWith("M.513")).toBe(true);
@@ -222,6 +226,18 @@ describe("setViewed", () => {
     setViewed(ul, (p) => p.startsWith("src/"));
     expect(ul.querySelector('[data-kind="group"]')!.getAttribute("aria-expanded")).toBe("false");
     expect(ul.querySelectorAll('[data-kind="group"]')[1].getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("marks single-file folders and groups with a check once done", () => {
+    const ul = renderTree(buildGroupTree(toOrdered(FILES)), () => {});
+    const single = ul.querySelectorAll<HTMLElement>('[data-kind="group"]')[1]; // Ungrouped: README.md only
+    const mark = single.querySelector<HTMLElement>(":scope > .fast-pr-tree-row > .fast-pr-tree-viewed")!;
+    expect(mark.querySelector("path")!.getAttribute("d")!.startsWith("M13.78")).toBe(true);
+    expect(mark.title).toBe("Viewed");
+    const multi = ul.querySelector<HTMLElement>('[data-kind="group"]')!;
+    expect(multi.querySelector(":scope > .fast-pr-tree-row > .fast-pr-tree-viewed")).toBeNull();
+    setViewed(ul, (p) => p === "README.md");
+    expect(single.hasAttribute("data-done")).toBe(true);
   });
 
   it("marks single viewed files with a check", () => {
