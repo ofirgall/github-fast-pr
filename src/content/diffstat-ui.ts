@@ -68,7 +68,14 @@ export function buildWidget(stat: Diffstat): HTMLElement {
   wrap.append(btn, pop);
   top.append(wrap);
 
-  const orig = el("span", "fast-pr-ds-orig", `total ${signed("+", stat.original.added)} ${signed("-", stat.original.deleted)}`);
+  const orig = el("span", "fast-pr-ds-orig");
+  orig.append(
+    "(",
+    el("span", "fast-pr-add", signed("+", stat.original.added)),
+    " ",
+    el("span", "fast-pr-del", signed("-", stat.original.deleted)),
+    ")",
+  );
   orig.title = "Original totals, including auto-viewed files";
   w.append(top, orig);
 

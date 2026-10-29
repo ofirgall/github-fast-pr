@@ -35,7 +35,7 @@ describe("diffstat widget", () => {
     const w = buildWidget(stat);
     expect(w.querySelector(".fast-pr-ds-top .fast-pr-add")!.textContent).toBe("+1,205");
     expect(w.querySelector(".fast-pr-ds-top .fast-pr-del")!.textContent).toBe("-11");
-    expect(w.querySelector(".fast-pr-ds-orig")!.textContent).toBe("total +31,205 -111");
+    expect(w.querySelector(".fast-pr-ds-orig")!.textContent).toBe("(+31,205 -111)");
     const rows = [...w.querySelectorAll("tr")].slice(1).map((r) => r.textContent);
     expect(rows).toEqual(["Src+1,200-101", "Ungrouped+5-11", "Gen auto-viewed+30,000-1001"]);
     const btn = w.querySelector<HTMLButtonElement>("button.fast-pr-info")!;

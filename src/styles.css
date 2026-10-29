@@ -70,6 +70,8 @@
 @keyframes fast-pr-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .fast-pr-spinner { animation-duration: 2s; } }
 .fast-pr-ds-orig { font-size: 10px; color: var(--fgColor-muted, #59636e); }
+.fast-pr-ds-orig .fast-pr-add { color: color-mix(in srgb, var(--fgColor-success, #1a7f37) 55%, var(--fgColor-muted, #59636e)); }
+.fast-pr-ds-orig .fast-pr-del { color: color-mix(in srgb, var(--fgColor-danger, #d1242f) 55%, var(--fgColor-muted, #59636e)); }
 .fast-pr-info-wrap { position: relative; display: inline-flex; }
 .fast-pr-info {
   padding: 0 2px; border: 0; background: none; cursor: pointer; font-size: 12px; line-height: 1;
