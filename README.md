@@ -2,12 +2,17 @@
 
 Chrome (MV3) extension that groups the files of a GitHub pull request using a per-repo config: adjusted diffstat on the conversation page, and grouped ordering, labels, auto-viewed files and a grouped tree on the Files changed page. Repos without a config are left untouched.
 
+## Install from a release
+
+Download `github-fast-pr-<version>.zip` from [Releases](https://github.com/ofirgall/github-fast-pr/releases), unzip it, then in `chrome://extensions` enable Developer mode, click Load unpacked and select the unzipped folder. No Node or npm needed.
+
 ## Build and install
 
 ```sh
 make install         # npm ci + build into dist/, then opens chrome://extensions (macOS)
 make check           # typecheck + tests
-make clean           # remove dist/ and node_modules/
+make package         # minified build zipped as github-fast-pr-<version>.zip
+make clean           # remove dist/, node_modules/ and zips
 ```
 
 Or with npm directly: `npm install`, `npm run build`, `npm test`, `npm run typecheck`.
@@ -52,6 +57,16 @@ localStorage["fast-pr:dev-config:OWNER/REPO"] = JSON.stringify({
 ```
 
 All extension state lives in `fast-pr:`-prefixed localStorage keys; clear them to reset.
+
+## Releasing
+
+Bump `version` in `manifest.json` and `package.json`, commit, then push a matching tag:
+
+```sh
+git tag v0.1.1 && git push origin v0.1.1
+```
+
+The Release workflow checks the tag matches the manifest version, runs typecheck and tests, and publishes the zip as a GitHub Release.
 
 ## License
 

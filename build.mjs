@@ -1,6 +1,9 @@
 import { build } from "esbuild";
 import { rmSync, mkdirSync, copyFileSync } from "node:fs";
 
+// --release: minified, no source maps (for the packaged zip).
+const release = process.argv.includes("--release");
+
 rmSync("dist", { recursive: true, force: true });
 mkdirSync("dist", { recursive: true });
 
@@ -10,8 +13,8 @@ await build({
   bundle: true,
   format: "iife",
   target: "chrome120",
-  minify: false,
-  sourcemap: "inline",
+  minify: release,
+  sourcemap: release ? false : "inline",
   logLevel: "info",
 });
 

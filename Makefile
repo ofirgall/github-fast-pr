@@ -1,4 +1,7 @@
-.PHONY: install deps build test typecheck check clean
+.PHONY: install deps build test typecheck check package clean
+
+VERSION := $(shell node -p "require('./manifest.json').version")
+ZIP := github-fast-pr-$(VERSION).zip
 
 # Build the extension and show how to load it into Chrome.
 install: build
@@ -25,5 +28,12 @@ typecheck: node_modules
 
 check: typecheck test
 
+# Minified build zipped for a GitHub Release (unzip, then Load unpacked).
+package: node_modules
+	node build.mjs --release
+	rm -f $(ZIP)
+	cd dist && zip -qr ../$(ZIP) .
+	@echo "Wrote $(ZIP)"
+
 clean:
-	rm -rf dist node_modules
+	rm -rf dist node_modules github-fast-pr-*.zip
