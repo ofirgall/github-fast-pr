@@ -61,6 +61,14 @@
 .fast-pr-ds-top { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; }
 .fast-pr-add { color: var(--fgColor-success, #1a7f37); }
 .fast-pr-del { color: var(--fgColor-danger, #d1242f); }
+.fast-pr-ds-loading { flex-direction: row; align-items: center; margin-left: 6px; }
+.fast-pr-spinner {
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 2px solid var(--fgColor-muted, #59636e); border-right-color: transparent;
+  animation: fast-pr-spin 0.7s linear infinite;
+}
+@keyframes fast-pr-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .fast-pr-spinner { animation-duration: 2s; } }
 .fast-pr-ds-orig { font-size: 10px; color: var(--fgColor-muted, #59636e); }
 .fast-pr-info-wrap { position: relative; display: inline-flex; }
 .fast-pr-info {

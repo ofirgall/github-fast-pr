@@ -1,7 +1,7 @@
 import { compileConfig } from "../core/config";
 import { computeDiffstat } from "../core/diffstat";
 import { findChangesRoute, prIdentity, type PrIdentity } from "../core/route";
-import { getConfigBySha, lookupConfig, type CachedConfig } from "../core/storage";
+import { getConfigByPr, getConfigBySha, lookupConfig, type CachedConfig } from "../core/storage";
 import { localConfig } from "../shared/config-source";
 import { RESULT_EVENT } from "../shared/types";
 import { mountDecorations } from "./decorations";
@@ -125,9 +125,16 @@ export function startConversationPage(page: PageInfo): Teardown {
   async function refresh() {
     try {
       const found = await fetchChangesRoute(page);
-      if (disposed || !found) return;
+      if (disposed) return;
+      if (!found) {
+        ctl.set(null);
+        return;
+      }
       const id = prIdentity(found.route);
-      if (!id) return;
+      if (!id) {
+        ctl.set(null);
+        return;
+      }
       const summaries = found.route.diffSummaries;
       const dev = localConfig();
       if (dev) {
@@ -143,9 +150,12 @@ export function startConversationPage(page: PageInfo): Teardown {
         if (!cached || cached.hash !== fresh.hash || cached.status !== fresh.status) show(fresh, summaries);
       }
     } catch (e) {
+      if (!disposed) ctl.set(null);
       console.warn("[fast-pr] diffstat error", e);
     }
   }
+  // Spinner only when grouping is expected, so repos without a config stay untouched.
+  if (localConfig()?.status === "ok" || getConfigByPr(page.owner, page.repo, page.number)?.status === "ok") ctl.loading();
   void refresh();
 
   return () => {

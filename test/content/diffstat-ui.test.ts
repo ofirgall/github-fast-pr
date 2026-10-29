@@ -94,6 +94,30 @@ describe("diffstat widget", () => {
     c.destroy();
   });
 
+  it("loading shows a spinner beside the native numbers, then set() replaces it", () => {
+    const c = createDiffstatController(() => {});
+    c.loading();
+    const container = document.getElementById("stat")!;
+    const spin = container.querySelector(".fast-pr-ds-loading")!;
+    expect(spin.querySelector(".fast-pr-spinner")).not.toBeNull();
+    expect(spin.nextElementSibling!.id).toBe("squares");
+    expect(container.querySelectorAll(".fast-pr-native-hidden")).toHaveLength(0);
+    c.set(stat);
+    expect(container.querySelector(".fast-pr-ds-loading")).toBeNull();
+    expect(container.querySelectorAll(".fast-pr-diffstat")).toHaveLength(1);
+    expect(container.querySelectorAll(".fast-pr-native-hidden")).toHaveLength(2);
+    c.destroy();
+  });
+
+  it("loading then set(null) restores the native diffstat exactly", () => {
+    const before = document.body.innerHTML;
+    const c = createDiffstatController(() => {});
+    c.loading();
+    c.set(null);
+    expect(document.body.innerHTML).toBe(before);
+    c.destroy();
+  });
+
   it("notifies when native text changes", async () => {
     const cb = vi.fn();
     const c = createDiffstatController(cb);

@@ -87,13 +87,27 @@ export function buildWidget(stat: Diffstat): HTMLElement {
   return w;
 }
 
+/** Placeholder shown next to the native numbers while grouped counts are computed. */
+export function buildSpinner(): HTMLElement {
+  const w = el("span", "fast-pr-diffstat fast-pr-ds-loading");
+  markUi(w);
+  w.dataset.sig = "loading";
+  w.setAttribute("role", "status");
+  w.title = "Fast PR: computing grouped line counts";
+  w.append(el("span", "fast-pr-spinner"), el("span", "sr-only", "Computing grouped line counts"));
+  return w;
+}
+
 export interface DiffstatController {
   set(stat: Diffstat | null): void;
+  /** Show the spinner until the next set(). */
+  loading(): void;
   destroy(): void;
 }
 
 export function createDiffstatController(onNativeChange: () => void): DiffstatController {
   let stat: Diffstat | null = null;
+  let isLoading = false;
   let nativeText: string | null = null;
 
   const existingWidget = (n: Native) =>
@@ -114,18 +128,20 @@ export function createDiffstatController(onNativeChange: () => void): DiffstatCo
       nativeText = text;
       onNativeChange();
     }
-    if (!stat) {
+    if (!stat && !isLoading) {
       cleanup(n);
       return;
     }
+    const sig = stat ? JSON.stringify(stat) : "loading";
     let w = existingWidget(n);
-    if (!w || w.dataset.sig !== JSON.stringify(stat)) {
+    if (!w || w.dataset.sig !== sig) {
       w?.remove();
-      w = buildWidget(stat);
+      w = stat ? buildWidget(stat) : buildSpinner();
       if (n.squares) n.container.insertBefore(w, n.squares);
       else n.container.append(w);
     }
-    n.numbers.forEach((x) => x.classList.add("fast-pr-native-hidden"));
+    // Native numbers stay visible next to the spinner; the widget replaces them.
+    n.numbers.forEach((x) => x.classList.toggle("fast-pr-native-hidden", stat !== null));
   };
   const sched = throttled(render, 50);
   const mo = new MutationObserver((muts) => {
@@ -137,8 +153,14 @@ export function createDiffstatController(onNativeChange: () => void): DiffstatCo
   return {
     set(s) {
       stat = s;
+      isLoading = false;
       const n = findNativeDiffstat(document);
       nativeText = n ? (n.srOnly.textContent ?? "") : null;
+      render();
+    },
+    loading() {
+      stat = null;
+      isLoading = true;
       render();
     },
     destroy() {
