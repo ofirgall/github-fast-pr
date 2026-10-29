@@ -29,7 +29,7 @@ Auto-viewed groups really mark files viewed on GitHub, as if you clicked Viewed.
 
 ## Config: `.github/pr-groups.json`
 
-Read from the PR head commit, falling back to the base branch.
+Read from the PR head commit, falling back to the base branch. JSONC: `//` and `/* */` comments and trailing commas are allowed.
 
 ```json
 {

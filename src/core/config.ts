@@ -1,4 +1,5 @@
 import { compileGenerated, type GeneratedRule } from "./gitattributes";
+import { stripJsonc } from "./jsonc";
 
 /** Higher goes first; unset falls back to the defaults below. */
 export interface Priorities { matchPriority?: number; viewPriority?: number }
@@ -76,7 +77,7 @@ function readTopPriorities(
 export function parseConfig(text: string): ParseResult {
   let raw: unknown;
   try {
-    raw = JSON.parse(text);
+    raw = JSON.parse(stripJsonc(text));
   } catch (e) {
     return { ok: false, error: `Invalid JSON: ${(e as Error).message}` };
   }
