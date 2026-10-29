@@ -14,6 +14,7 @@ import type { PageInfo } from "./router";
 import { sendFileReviews } from "./sender";
 import { mountTreePanel, type Mounted } from "./tree-ui";
 import { mountViewedProgress } from "./viewed-ui";
+import { createViewedState } from "./viewed-state";
 
 export type Teardown = () => void;
 
@@ -94,8 +95,9 @@ export function startChangesPage(page: PageInfo): Teardown {
     diffstat.set(result.configStatus === "ok" && result.fullDiff ? resultDiffstat(result.files) : null);
     if (result.configStatus !== "ok") return;
     try {
-      ui.push(mountDecorations(result), mountTreePanel(result));
-      if (result.fullDiff && result.files.some((f) => f.autoViewed)) ui.push(mountViewedProgress(result));
+      const viewed = createViewedState(result);
+      ui.push(viewed, mountDecorations(result), mountTreePanel(result, viewed));
+      if (result.fullDiff && result.files.some((f) => f.autoViewed)) ui.push(mountViewedProgress(result, viewed));
     } catch (e) {
       console.warn("[fast-pr] UI error", e);
     }

@@ -2,7 +2,8 @@
 import { getAutoRecord, isDebug, lookupConfig } from "./core/storage";
 import { localConfig } from "./shared/config-source";
 import { patchChangesData, type PatchEnv } from "./hook/patch";
-import { RESULT_ATTR, RESULT_EVENT, type FastPrResult } from "./shared/types";
+import { parseReviewRequest } from "./hook/review";
+import { RESULT_ATTR, RESULT_EVENT, VIEWED_EVENT, type FastPrResult, type ViewedChange } from "./shared/types";
 
 const env: PatchEnv = {
   configFor(id) {
@@ -55,8 +56,51 @@ try {
   warn(e);
 }
 
+const origParse = JSON.parse;
+
+function emitViewed(c: ViewedChange): void {
+  document.dispatchEvent(new CustomEvent(VIEWED_EVENT, { detail: JSON.stringify(c) }));
+}
+
+function reviewOf(url: string, method: string, body: unknown): ViewedChange | null {
+  try {
+    return parseReviewRequest(url, method, body, location.origin, (s) => origParse(s));
+  } catch (e) {
+    warn(e);
+    return null;
+  }
+}
+
+// Watch GitHub's own Viewed toggles, so the tree can count viewed files live.
 try {
-  const origParse = JSON.parse;
+  const origFetch = window.fetch;
+  window.fetch = function (this: unknown, input: RequestInfo | URL, init?: RequestInit) {
+    const p: Promise<Response> = Reflect.apply(origFetch, this, [input, init]);
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    const method = init?.method ?? (input instanceof Request ? input.method : "GET");
+    const c = reviewOf(url, method, init?.body);
+    if (c) p.then((res) => res.ok && emitViewed(c), () => {});
+    return p;
+  } as typeof fetch;
+
+  const xhrReq = new WeakMap<XMLHttpRequest, { method: string; url: string }>();
+  const origOpen = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function (this: XMLHttpRequest, ...args: unknown[]) {
+    xhrReq.set(this, { method: String(args[0]), url: String(args[1]) });
+    return Reflect.apply(origOpen, this, args);
+  } as typeof XMLHttpRequest.prototype.open;
+  const origSend = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.send = function (this: XMLHttpRequest, body?: Document | XMLHttpRequestBodyInit | null) {
+    const r = xhrReq.get(this);
+    const c = r && reviewOf(r.url, r.method, body);
+    if (c) this.addEventListener("load", () => this.status >= 200 && this.status < 300 && emitViewed(c));
+    return Reflect.apply(origSend, this, [body]);
+  };
+} catch (e) {
+  warn(e);
+}
+
+try {
   JSON.parse = function (this: unknown, ...args: Parameters<typeof JSON.parse>) {
     const out = Reflect.apply(origParse, this, args);
     handle(out);

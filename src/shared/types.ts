@@ -30,3 +30,13 @@ export interface FastPrResult {
 
 export const RESULT_ATTR = "data-fast-pr";
 export const RESULT_EVENT = "fast-pr:files";
+
+/** MAIN world -> content script: GitHub marked a file viewed or not viewed. Detail is JSON. */
+export const VIEWED_EVENT = "fast-pr:viewed";
+export interface ViewedChange {
+  owner: string;
+  repo: string;
+  number: number;
+  path: string;
+  viewed: boolean;
+}

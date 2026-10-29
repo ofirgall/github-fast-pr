@@ -1,8 +1,9 @@
 // @vitest-environment happy-dom
 import { describe, it, expect, beforeEach } from "vitest";
 import { buildGroupTree } from "../../src/core/tree";
-import { renderTree, toOrdered, mountTreePanel } from "../../src/content/tree-ui";
-import type { FastPrFile, FastPrResult } from "../../src/shared/types";
+import { renderTree, toOrdered, mountTreePanel, setViewed } from "../../src/content/tree-ui";
+import { createViewedState } from "../../src/content/viewed-state";
+import { VIEWED_EVENT, type FastPrFile, type FastPrResult } from "../../src/shared/types";
 
 const f = (path: string, group: string | null, idx: number | null, auto = false): FastPrFile => ({
   path, pathDigest: "dg_" + path.replace(/\W/g, "_"), linesAdded: 1, linesDeleted: 0, changeType: null,
@@ -175,10 +176,41 @@ function nativeTree() {
   document.body.innerHTML = `<div id="pane"><div id="scroll"><ul role="tree" aria-label="File Tree"><li role="treeitem">x</li></ul></div></div>`;
 }
 
+describe("setViewed", () => {
+  it("shows viewed/total on folders and groups, green with a check when all are viewed", () => {
+    const ul = renderTree(buildGroupTree(toOrdered(FILES)), () => {});
+    const group = ul.querySelector<HTMLElement>('[data-kind="group"]')!;
+    const count = () => group.querySelector<HTMLElement>(":scope > .fast-pr-tree-row > .fast-pr-tree-count")!;
+    setViewed(ul, (p) => p === "src/a/x.ts");
+    expect(count().textContent).toBe("1/2");
+    expect(count().title).toBe("1 of 2 files viewed");
+    expect(count().classList.contains("fast-pr-tree-count-done")).toBe(false);
+    expect(ul.querySelector('li[data-path="src/a/x.ts"]')!.hasAttribute("data-viewed")).toBe(true);
+    setViewed(ul, (p) => p.startsWith("src/"));
+    expect(count().textContent).toBe("2/2");
+    expect(count().classList.contains("fast-pr-tree-count-done")).toBe(true);
+    expect(count().querySelector("path")!.getAttribute("d")!.startsWith("M13.78")).toBe(true);
+  });
+});
+
 describe("mountTreePanel", () => {
+  it("updates counts on GitHub's Viewed toggles", () => {
+    document.body.innerHTML = '<div><ul role="tree" aria-label="File Tree"></ul></div>';
+    const v = createViewedState(result());
+    const m = mountTreePanel(result(), v);
+    const count = () => document.querySelector<HTMLElement>('.fast-pr-tree [data-kind="group"] .fast-pr-tree-count')!;
+    expect(count().textContent).toBe("0/2");
+    document.dispatchEvent(
+      new CustomEvent(VIEWED_EVENT, { detail: JSON.stringify({ owner: "o", repo: "r", number: 1, path: "src/a/y.ts", viewed: true }) }),
+    );
+    expect(count().textContent).toBe("1/2");
+    m.destroy();
+    v.destroy();
+  });
+
   it("inserts panel before native container, hides native in grouped mode, toggles + persists", () => {
     nativeTree();
-    const m = mountTreePanel(result());
+    const m = mountTreePanel(result(), createViewedState(result()));
     const scroll = document.getElementById("scroll")!;
     const panel = document.querySelector<HTMLElement>(".fast-pr-tree-panel")!;
     expect(panel.nextElementSibling).toBe(scroll);
@@ -200,7 +232,7 @@ describe("mountTreePanel", () => {
   it("puts the toggle after GitHub's filter button when the filter row exists", () => {
     nativeTree();
     document.body.insertAdjacentHTML("afterbegin", `<div id="diff-file-tree-filter"><input><div><button>f</button></div></div>`);
-    const m = mountTreePanel(result());
+    const m = mountTreePanel(result(), createViewedState(result()));
     const row = document.getElementById("diff-file-tree-filter")!;
     expect(row.lastElementChild!.classList.contains("fast-pr-tree-toggle")).toBe(true);
     expect(document.querySelector(".fast-pr-tree-toolbar")!.children).toHaveLength(0);
@@ -213,7 +245,7 @@ describe("mountTreePanel", () => {
     document.querySelector('ul[aria-label="File Tree"]')!.innerHTML = `
       <li role="treeitem" id="src/a/x.ts" aria-current="true"><svg class="octicon-comment"></svg><div>4</div></li>
       <li role="treeitem" id="README.md"></li>`;
-    const m = mountTreePanel(result());
+    const m = mountTreePanel(result(), createViewedState(result()));
     const ours = (p: string) => document.querySelector<HTMLElement>(`.fast-pr-tree li[data-path="${p}"]`)!;
     expect(ours("src/a/x.ts").getAttribute("aria-current")).toBe("true");
     expect(ours("src/a/x.ts").querySelector(".fast-pr-tree-comments")!.textContent).toBe("4");
@@ -225,7 +257,7 @@ describe("mountTreePanel", () => {
   it("starts in original mode when stored", () => {
     localStorage.setItem("fast-pr:tree-mode", "original");
     nativeTree();
-    const m = mountTreePanel(result());
+    const m = mountTreePanel(result(), createViewedState(result()));
     expect(document.getElementById("scroll")!.classList.contains("fast-pr-hidden")).toBe(false);
     expect(document.querySelector<HTMLElement>("ul.fast-pr-tree")!.hidden).toBe(true);
     m.destroy();
@@ -233,7 +265,7 @@ describe("mountTreePanel", () => {
 
   it("file click sets location.hash", () => {
     nativeTree();
-    const m = mountTreePanel(result());
+    const m = mountTreePanel(result(), createViewedState(result()));
     (document.querySelector('[data-kind="file"] .fast-pr-tree-row') as HTMLElement).click();
     expect(location.hash).toBe("#diff-dg_src_a_x_ts");
     m.destroy();
@@ -241,7 +273,7 @@ describe("mountTreePanel", () => {
 
   it("re-attaches when the pane is replaced, and never duplicates", async () => {
     nativeTree();
-    const m = mountTreePanel(result());
+    const m = mountTreePanel(result(), createViewedState(result()));
     nativeTree(); // React replaced everything
     await new Promise((r) => setTimeout(r, 120));
     expect(document.querySelectorAll(".fast-pr-tree-panel")).toHaveLength(1);

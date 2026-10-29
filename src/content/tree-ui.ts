@@ -3,6 +3,7 @@ import { buildGroupTree, type TreeNode } from "../core/tree";
 import { getTreeMode, setTreeMode, type TreeMode } from "../core/storage";
 import type { FastPrFile, FastPrResult } from "../shared/types";
 import { el, fmt, icon, isOwnMutation, markUi, throttled } from "./dom";
+import type { ViewedState } from "./viewed-state";
 
 export function toOrdered(
   files: FastPrFile[],
@@ -35,6 +36,7 @@ const P = {
   fileMoved: "M2 1.75C2 .784 2.784 0 3.75 0h6.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16h-3.5a.75.75 0 0 1 0-1.5h3.5a.25.25 0 0 0 .25-.25V4.664a.25.25 0 0 0-.073-.177l-2.914-2.914a.25.25 0 0 0-.177-.073H3.75a.25.25 0 0 0-.25.25v6.5a.75.75 0 0 1-1.5 0v-6.5Zm3.427 13.823 3.146-3.146a.25.25 0 0 0 0-.354L5.427 8.927A.25.25 0 0 0 5 9.104V11.5H.75a.75.75 0 0 0 0 1.5H5v2.396c0 .223.27.335.427.177Z",
   fileRemoved: "M2 1.75C2 .784 2.784 0 3.75 0h6.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16h-9.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h9.5a.25.25 0 0 0 .25-.25V4.664a.25.25 0 0 0-.073-.177l-2.914-2.914a.25.25 0 0 0-.177-.073Zm4.5 6h2.242a.75.75 0 0 1 0 1.5h-2.24l-2.254.015a.75.75 0 0 1-.01-1.5Z",
   stack: "M7.122.392a1.75 1.75 0 0 1 1.756 0l5.003 2.902c.83.481.83 1.68 0 2.162L8.878 8.358a1.75 1.75 0 0 1-1.756 0L2.119 5.456a1.251 1.251 0 0 1 0-2.162ZM8.125 1.69a.248.248 0 0 0-.25 0l-4.63 2.685 4.63 2.685a.248.248 0 0 0 .25 0l4.63-2.685ZM1.601 7.789a.75.75 0 0 1 1.025-.273l5.249 3.044a.248.248 0 0 0 .25 0l5.249-3.044a.75.75 0 0 1 .752 1.298l-5.248 3.044a1.75 1.75 0 0 1-1.756 0L1.874 8.814A.75.75 0 0 1 1.6 7.789Zm0 3.5a.75.75 0 0 1 1.025-.273l5.249 3.044a.248.248 0 0 0 .25 0l5.249-3.044a.75.75 0 0 1 .752 1.298l-5.248 3.044a1.75 1.75 0 0 1-1.756 0l-5.248-3.044a.75.75 0 0 1-.273-1.025Z",
+  check: "M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z",
   comment: "M1 2.75C1 1.784 1.784 1 2.75 1h10.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 13.25 12H9.06l-2.573 2.573A1.458 1.458 0 0 1 4 13.543V12H2.75A1.75 1.75 0 0 1 1 10.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.749.749 0 0 1 .53-.22h4.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z",
 };
 
@@ -177,6 +179,24 @@ function setComments(li: HTMLElement, count: number): void {
   badge.replaceChildren(icon(P.comment), el("span", undefined, String(count)));
 }
 
+/** Viewed counts on folder and group rows ("3/9"), green with a check once all are viewed. */
+export function setViewed(tree: HTMLElement, has: (path: string) => boolean): void {
+  tree.querySelectorAll<HTMLElement>('li[data-kind="file"]').forEach((li) => li.toggleAttribute("data-viewed", has(li.dataset.path ?? "")));
+  tree.querySelectorAll<HTMLElement>(".fast-pr-tree-count").forEach((count) => {
+    const li = count.closest("li");
+    if (!li) return;
+    const total = li.querySelectorAll('li[data-kind="file"]').length;
+    const viewed = li.querySelectorAll('li[data-kind="file"][data-viewed]').length;
+    const sig = `${viewed}/${total}`;
+    if (count.dataset.sig === sig) return;
+    count.dataset.sig = sig;
+    const done = viewed === total;
+    count.classList.toggle("fast-pr-tree-count-done", done);
+    count.title = `${fmt(viewed)} of ${fmt(total)} files viewed`;
+    count.replaceChildren(icon(done ? P.check : P.file), el("span", undefined, `${fmt(viewed)}/${fmt(total)}`));
+  });
+}
+
 /**
  * Copy per-file state that only GitHub's own (hidden) tree knows: comment counts and
  * which file is current. Native items use the file path as their id.
@@ -282,7 +302,7 @@ const FILTER_ROW = "#diff-file-tree-filter";
 
 export interface Mounted { destroy(): void }
 
-export function mountTreePanel(result: FastPrResult): Mounted {
+export function mountTreePanel(result: FastPrResult, viewed: ViewedState): Mounted {
   const nodes = buildGroupTree(toOrdered(result.files));
   const panel = el("div", "fast-pr-tree-panel");
   markUi(panel);
@@ -296,6 +316,8 @@ export function mountTreePanel(result: FastPrResult): Mounted {
     location.hash = "diff-" + digest;
   });
   panel.append(toolbar, tree);
+  setViewed(tree, viewed.has);
+  const unsubscribe = viewed.subscribe(() => setViewed(tree, viewed.has));
 
   let mode: TreeMode = getTreeMode();
   let container: HTMLElement | null = null;
@@ -345,6 +367,7 @@ export function mountTreePanel(result: FastPrResult): Mounted {
     destroy() {
       mo.disconnect();
       sched.cancel();
+      unsubscribe();
       container?.classList.remove("fast-pr-hidden");
       toggle.remove();
       panel.remove();

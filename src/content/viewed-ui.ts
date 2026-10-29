@@ -2,6 +2,7 @@
 import type { FastPrResult } from "../shared/types";
 import { el, fmt, isOwnMutation, markUi, SVG_NS, throttled } from "./dom";
 import type { Mounted } from "./tree-ui";
+import type { ViewedState } from "./viewed-state";
 
 const SR_RE = /^(\d+) of (\d+) files? viewed$/;
 const CIRCUMFERENCE = 38; // GitHub's ring: r=6
@@ -25,12 +26,16 @@ export function findViewedProgress(root: ParentNode): NativeProgress | null {
 }
 
 /**
- * Files to review that are viewed, given GitHub's live count. Auto-viewed files that were
- * viewed when the page loaded are subtracted; later changes are assumed to be files to review.
+ * Files to review that are viewed, given GitHub's live count: the auto-viewed files that are
+ * currently viewed are subtracted.
  */
-export function adjustedProgress(result: FastPrResult, native: { viewed: number; total: number }) {
+export function adjustedProgress(
+  result: FastPrResult,
+  native: { viewed: number; total: number },
+  isViewed: (path: string) => boolean,
+) {
   const auto = result.files.filter((f) => f.autoViewed);
-  const autoViewed = auto.filter((f) => f.originalViewed || f.markedByHook).length;
+  const autoViewed = auto.filter((f) => isViewed(f.path)).length;
   const total = native.total - auto.length;
   return { viewed: Math.min(total, Math.max(0, native.viewed - autoViewed)), total };
 }
@@ -93,7 +98,7 @@ export function buildViewedProgress(
   return w;
 }
 
-export function mountViewedProgress(result: FastPrResult): Mounted {
+export function mountViewedProgress(result: FastPrResult, viewed: ViewedState): Mounted {
   let hidden: HTMLElement | null = null;
   const ours = () => hidden?.nextElementSibling?.classList.contains("fast-pr-viewed") ? (hidden.nextElementSibling as HTMLElement) : null;
 
@@ -107,7 +112,7 @@ export function mountViewedProgress(result: FastPrResult): Mounted {
       hidden.classList.remove("fast-pr-native-hidden");
     }
     hidden = n.container;
-    const adjusted = adjustedProgress(result, n);
+    const adjusted = adjustedProgress(result, n, viewed.has);
     const mine = ours();
     const sig = `${adjusted.viewed}/${adjusted.total}/${n.viewed}/${n.total}`;
     if (!mine || mine.dataset.sig !== sig) {
@@ -125,12 +130,15 @@ export function mountViewedProgress(result: FastPrResult): Mounted {
     sched.call();
   });
   mo.observe(document.body, { childList: true, subtree: true, characterData: true });
+  // GitHub's count can update before or after our tracking; render on both.
+  const unsubscribe = viewed.subscribe(() => sched.call());
   render();
 
   return {
     destroy() {
       mo.disconnect();
       sched.cancel();
+      unsubscribe();
       ours()?.remove();
       hidden?.classList.remove("fast-pr-native-hidden");
     },
