@@ -66,15 +66,16 @@ export function buildViewedProgress(
   w.title = "Files to review viewed (all files, including auto-viewed, in parentheses)";
   const text = el("span", "fast-pr-viewed-text");
   text.setAttribute("aria-hidden", "true");
-  text.append(
+  // Files to review on top; GitHub's full count below, smaller (like the +/- summary).
+  const top = el("span", "fast-pr-viewed-top");
+  top.append(
     el("span", "fast-pr-viewed-num", fmt(adjusted.viewed)),
     " / ",
     el("span", "fast-pr-viewed-num", fmt(adjusted.total)),
     " ",
     el("span", "fast-pr-viewed-label", "viewed"),
-    " ",
-    el("span", "fast-pr-viewed-orig", `(${fmt(native.viewed)} / ${fmt(native.total)})`),
   );
+  text.append(top, el("span", "fast-pr-viewed-orig", `(${fmt(native.viewed)} / ${fmt(native.total)})`));
   w.append(
     ring(adjusted.viewed, adjusted.total),
     text,

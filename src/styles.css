@@ -1,4 +1,5 @@
-.fast-pr-hidden, .fast-pr-native-hidden { display: none !important; }
+/* Doubled class: beats Primer utilities like .d-flex, which are also !important. */
+.fast-pr-hidden.fast-pr-hidden, .fast-pr-native-hidden.fast-pr-native-hidden { display: none !important; }
 
 /* Group label inside virtualized rows */
 .fast-pr-group-label {
@@ -86,9 +87,12 @@
 
 /* Changes page "N / M viewed", counting files to review */
 .fast-pr-viewed { display: flex; align-items: center; }
-.fast-pr-viewed-text { margin-left: 4px; font-size: 12px; line-height: 18px; color: var(--fgColor-muted, #59636e); white-space: nowrap; }
+.fast-pr-viewed-text {
+  display: inline-flex; flex-direction: column; margin-left: 4px; line-height: 1.15;
+  font-size: 12px; color: var(--fgColor-muted, #59636e); white-space: nowrap;
+}
 .fast-pr-viewed-num { font-weight: 500; color: var(--fgColor-default, #1f2328); }
-.fast-pr-viewed-orig { opacity: 0.8; font-size: 0.9em; }
+.fast-pr-viewed-orig { font-size: 10px; }
 
 /* Conversation diffstat */
 .fast-pr-diffstat { display: inline-flex; flex-direction: column; line-height: 1.15; position: relative; }
