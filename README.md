@@ -5,11 +5,12 @@ Chrome (MV3) extension that groups the files of a GitHub pull request using a pe
 ## Build and install
 
 ```sh
-npm install
-npm run build        # writes dist/
-npm test             # vitest
-npm run typecheck
+make install         # npm ci + build into dist/, then opens chrome://extensions (macOS)
+make check           # typecheck + tests
+make clean           # remove dist/ and node_modules/
 ```
+
+Or with npm directly: `npm install`, `npm run build`, `npm test`, `npm run typecheck`.
 
 Load it: open `chrome://extensions`, enable Developer mode, click Load unpacked, select the `dist/` folder. Rebuild and click reload on the extension card after changes.
 
