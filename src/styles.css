@@ -72,6 +72,7 @@
 .fast-pr-tree-lines { display: inline-flex; gap: 4px; margin-left: auto; flex: none; font-size: 12px; font-weight: 400; font-variant-numeric: tabular-nums; }
 .fast-pr-tree-lines:empty { display: none; }
 .fast-pr-tree-count { display: inline-flex; align-items: center; gap: 2px; flex: none; color: var(--fgColor-muted, #59636e); font-size: 12px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.fast-pr-tree-lines:not(:empty) + .fast-pr-tree-count { border-left: 1px solid var(--borderColor-default, #d1d9e0); padding-left: 6px; margin-left: 2px; line-height: 12px; }
 .fast-pr-tree-count svg { width: 12px; height: 12px; }
 .fast-pr-tree-count-done { color: var(--fgColor-success, #1a7f37); }
 .fast-pr-tree .fast-pr-pill { font-size: 10px; line-height: 16px; }
