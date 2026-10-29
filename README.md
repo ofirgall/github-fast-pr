@@ -17,7 +17,15 @@ make clean           # remove dist/, node_modules/ and zips
 
 Or with npm directly: `npm install`, `npm run build`, `npm test`, `npm run typecheck`.
 
-Load it: open `chrome://extensions`, enable Developer mode, click Load unpacked, select the `dist/` folder. Rebuild and click reload on the extension card after changes.
+## Testing local changes
+
+1. `make check` runs the typecheck and unit tests.
+2. `make build` writes an unminified build with source maps to `dist/`.
+3. In `chrome://extensions`, enable Developer mode, click Load unpacked and select `dist/` (`make install` builds and opens this page on macOS). Remove or disable any release build you loaded, or both run on the page.
+4. After each change: `make build`, click reload on the extension card, then refresh the GitHub tab.
+5. Give it a config: commit `.github/pr-groups.json` to a repo you can open PRs in, or set a dev-config without committing anything (see [Debugging](#debugging)).
+
+Auto-viewed groups really mark files viewed on GitHub, as if you clicked Viewed. Try them on a PR where that doesn't matter, or leave `autoViewed` out at first.
 
 ## Config: `.github/pr-groups.json`
 
