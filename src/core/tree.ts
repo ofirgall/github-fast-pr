@@ -4,7 +4,7 @@ import { UNGROUPED } from "./grouping";
 export type TreeNode =
   | { kind: "group"; name: string; autoViewed: boolean; ungrouped: boolean; children: TreeNode[] }
   | { kind: "dir"; name: string; path: string; children: TreeNode[] }
-  | { kind: "file"; name: string; path: string; pathDigest: string; autoViewed: boolean };
+  | { kind: "file"; name: string; path: string; pathDigest: string; autoViewed: boolean; changeType: string | null };
 
 function mergeDirs(nodes: TreeNode[]): TreeNode[] {
   return nodes.map((n) => {
@@ -18,7 +18,7 @@ function mergeDirs(nodes: TreeNode[]): TreeNode[] {
   });
 }
 
-export function buildGroupTree<T extends { path: string; pathDigest: string }>(
+export function buildGroupTree<T extends { path: string; pathDigest: string; changeType?: string | null }>(
   ordered: OrderedFile<T>[],
 ): TreeNode[] {
   const result: TreeNode[] = [];
@@ -58,6 +58,7 @@ export function buildGroupTree<T extends { path: string; pathDigest: string }>(
       path: file.path,
       pathDigest: file.pathDigest,
       autoViewed: group?.autoViewed === true,
+      changeType: file.changeType ?? null,
     });
   }
   for (const g of result) if (g.kind === "group") g.children = mergeDirs(g.children);

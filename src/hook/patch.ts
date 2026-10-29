@@ -1,6 +1,6 @@
 import { compileConfig } from "../core/config";
 import { orderFiles } from "../core/grouping";
-import { findChangesRoute, isFullDiff, prIdentity, type PrIdentity } from "../core/route";
+import { findChangesRoute, isFullDiff, prIdentity, type DiffSummary, type PrIdentity } from "../core/route";
 import type { CachedConfig } from "../core/storage";
 import type { ConfigStatus, FastPrFile, FastPrResult } from "../shared/types";
 
@@ -18,6 +18,9 @@ const FLAG = "__fastPr";
  * Returns null when it isn't one. Throws only if env throws (callers catch);
  * data is mutated only after everything has been computed.
  */
+const changeTypeOf = (s: DiffSummary): string | null =>
+  typeof s.changeType === "string" ? s.changeType : null;
+
 export function patchChangesData(
   data: unknown,
   env: PatchEnv,
@@ -58,6 +61,7 @@ export function patchChangesData(
         pathDigest: file.pathDigest,
         linesAdded: file.linesAdded,
         linesDeleted: file.linesDeleted,
+        changeType: changeTypeOf(file),
         group: group ? group.name : null,
         groupIndex: group ? group.index : null,
         autoViewed: auto,
@@ -98,6 +102,7 @@ export function patchChangesData(
         pathDigest: f.pathDigest,
         linesAdded: f.linesAdded,
         linesDeleted: f.linesDeleted,
+        changeType: changeTypeOf(f),
         group: null,
         groupIndex: null,
         autoViewed: false,

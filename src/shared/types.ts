@@ -7,6 +7,8 @@ export interface FastPrFile {
   pathDigest: string;
   linesAdded: number;
   linesDeleted: number;
+  /** GitHub's diff summary changeType (ADDED, MODIFIED, RENAMED, REMOVED, ...); null if absent. */
+  changeType: string | null;
   group: string | null;
   groupIndex: number | null;
   autoViewed: boolean;

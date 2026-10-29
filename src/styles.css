@@ -37,25 +37,41 @@
 }
 .fast-pr-tree-toggle:hover { background: var(--button-default-bgColor-hover, #eff2f5); }
 .fast-pr-tree-toggle[aria-pressed="true"] { color: var(--fgColor-success, #1a7f37); }
-.fast-pr-tree { list-style: none; margin: 0; padding: 0; overflow: auto; flex: 1 1 auto; font-size: 13px; }
+/* Grouped tree: mirrors GitHub's Primer TreeView (8px per level, 32px rows, 14px text). */
+.fast-pr-tree { list-style: none; margin: 0; padding: 0 8px 0 0; overflow: auto; flex: 1 1 auto; font-size: 14px; line-height: 21px; }
 .fast-pr-tree ul { list-style: none; margin: 0; padding: 0; }
 .fast-pr-tree[hidden] { display: none; }
 .fast-pr-tree li { outline: none; }
 .fast-pr-tree-row {
-  display: flex; align-items: center; gap: 4px; min-height: 28px; padding-right: 8px; cursor: pointer;
+  position: relative; display: flex; align-items: center; gap: 8px; min-height: 32px; padding-right: 8px; cursor: pointer;
   color: var(--fgColor-default, #1f2328); border-radius: 6px;
 }
 .fast-pr-tree-row:hover { background: var(--control-transparent-bgColor-hover, rgba(208,215,222,.32)); }
-.fast-pr-tree li:focus > .fast-pr-tree-row { outline: 2px solid var(--focus-outlineColor, #0969da); outline-offset: -2px; }
+.fast-pr-tree li[aria-current="true"] > .fast-pr-tree-row { background: var(--control-transparent-bgColor-selected, rgba(208,215,222,.24)); }
+.fast-pr-tree li[aria-current="true"] > .fast-pr-tree-row::after {
+  content: ""; position: absolute; left: -8px; top: 6px; bottom: 6px; width: 4px; border-radius: 6px;
+  background: var(--borderColor-accent-emphasis, #0969da);
+}
+.fast-pr-tree li:focus-visible > .fast-pr-tree-row { outline: 2px solid var(--focus-outlineColor, #0969da); outline-offset: -2px; }
 .fast-pr-tree-chev, .fast-pr-tree-icon { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; flex: none; }
 .fast-pr-tree-chev { color: var(--fgColor-muted, #59636e); }
 .fast-pr-tree-icon { color: var(--treeViewItem-leadingVisual-iconColor-rest, var(--fgColor-muted, #59636e)); }
+.fast-pr-tree-icon.fast-pr-ct-added { color: var(--fgColor-success, #1a7f37); }
+.fast-pr-tree-icon.fast-pr-ct-modified { color: var(--fgColor-muted, #59636e); }
+.fast-pr-tree-icon.fast-pr-ct-moved { color: var(--fgColor-attention, #9a6700); }
+.fast-pr-tree-icon.fast-pr-ct-removed { color: var(--fgColor-danger, #d1242f); }
 .fast-pr-tree svg { display: block; fill: currentColor; }
 .fast-pr-tree-count { color: var(--fgColor-muted, #59636e); font-size: 12px; font-weight: 400; }
 .fast-pr-tree .fast-pr-pill { font-size: 10px; line-height: 16px; }
-.fast-pr-tree-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fast-pr-tree-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fast-pr-tree [data-kind="group"] > .fast-pr-tree-row { font-weight: 600; }
-.fast-pr-tree-auto { margin-left: auto; color: var(--fgColor-success, #1a7f37); font-size: 11px; }
+.fast-pr-tree [data-kind="group"] > .fast-pr-tree-row > .fast-pr-tree-name { flex: 0 1 auto; }
+.fast-pr-tree-comments {
+  display: inline-flex; align-items: center; gap: 4px; flex: none;
+  color: var(--fgColor-muted, #59636e); font-size: 12px;
+}
+.fast-pr-tree-comments > span { color: var(--fgColor-default, #1f2328); font-weight: 600; }
+.fast-pr-tree-auto { flex: none; color: var(--fgColor-success, #1a7f37); font-size: 11px; }
 .fast-pr-tree [aria-expanded="false"] > ul { display: none; }
 
 /* Conversation diffstat */

@@ -67,11 +67,11 @@ export function throttled(fn: () => void, maxWaitMs: number): { call(): void; ca
 }
 
 export const SVG_NS = "http://www.w3.org/2000/svg";
-export function icon(path: string, cls?: string): SVGSVGElement {
+export function icon(path: string, cls?: string, box = 16): SVGSVGElement {
   const svg = document.createElementNS(SVG_NS, "svg");
-  svg.setAttribute("viewBox", "0 0 16 16");
-  svg.setAttribute("width", "16");
-  svg.setAttribute("height", "16");
+  svg.setAttribute("viewBox", `0 0 ${box} ${box}`);
+  svg.setAttribute("width", String(box));
+  svg.setAttribute("height", String(box));
   svg.setAttribute("fill", "currentColor");
   svg.setAttribute("aria-hidden", "true");
   svg.setAttribute("focusable", "false");

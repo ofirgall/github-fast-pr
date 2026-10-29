@@ -5,7 +5,7 @@ import { renderTree, toOrdered, mountTreePanel } from "../../src/content/tree-ui
 import type { FastPrFile, FastPrResult } from "../../src/shared/types";
 
 const f = (path: string, group: string | null, idx: number | null, auto = false): FastPrFile => ({
-  path, pathDigest: "dg_" + path.replace(/\W/g, "_"), linesAdded: 1, linesDeleted: 0,
+  path, pathDigest: "dg_" + path.replace(/\W/g, "_"), linesAdded: 1, linesDeleted: 0, changeType: null,
   group, groupIndex: idx, autoViewed: auto, originalViewed: false, markedByHook: false, skippedUnviewed: false,
 });
 const FILES = [f("src/a/x.ts", "Src", 0), f("src/a/y.ts", "Src", 0), f("README.md", null, null), f("gen/g.ts", "Gen", 1, true)];
@@ -16,8 +16,8 @@ const result = (): FastPrResult => ({
 });
 const key = (el: Element, k: string) => el.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true }));
 
-const CHEV_RIGHT = "M6.22 3.22";
-const CHEV_DOWN = "M12.78 5.22";
+const CHEV_RIGHT = "M4.7 10c";
+const CHEV_DOWN = "M6 8.825";
 const chevPath = (li: Element) =>
   li.querySelector(":scope > .fast-pr-tree-row > .fast-pr-tree-chev path")?.getAttribute("d") ?? "";
 
@@ -47,7 +47,9 @@ describe("renderTree", () => {
     document.body.append(ul);
     expect(ul.textContent).not.toMatch(/[▾▸•]/);
     for (const svg of ul.querySelectorAll("svg")) {
-      expect(svg.getAttribute("width")).toBe("16");
+      // 12px chevrons, 16px icons, as in GitHub's tree.
+      const chev = svg.parentElement!.classList.contains("fast-pr-tree-chev");
+      expect(svg.getAttribute("width")).toBe(chev ? "12" : "16");
       expect(svg.getAttribute("fill")).toBe("currentColor");
       expect(svg.getAttribute("aria-hidden")).toBe("true");
     }
@@ -66,6 +68,26 @@ describe("renderTree", () => {
     const spacer = file.querySelector(":scope > .fast-pr-tree-row > .fast-pr-tree-chev")!;
     expect(spacer.children).toHaveLength(0);
     expect(file.querySelector(".fast-pr-tree-icon path")!.getAttribute("d")!.startsWith("M2 1.75C2")).toBe(true);
+  });
+
+  it("file icons follow changeType, like GitHub's tree", () => {
+    const files = [
+      { ...FILES[2], path: "a.md", changeType: "ADDED" },
+      { ...FILES[2], path: "b.md", changeType: "MODIFIED" },
+      { ...FILES[2], path: "c.md", changeType: "RENAMED" },
+      { ...FILES[2], path: "d.md", changeType: "REMOVED" },
+      { ...FILES[2], path: "e.md", changeType: "SOMETHING_NEW" },
+    ];
+    const ul = renderTree(buildGroupTree(toOrdered(files)), () => {});
+    const icons = [...ul.querySelectorAll<HTMLElement>('[data-kind="file"] .fast-pr-tree-icon')];
+    expect(icons.map((i) => i.className.replace("fast-pr-tree-icon", "").trim())).toEqual([
+      "fast-pr-ct-added",
+      "fast-pr-ct-modified",
+      "fast-pr-ct-moved",
+      "fast-pr-ct-removed",
+      "",
+    ]);
+    expect(icons[4].querySelector("path")!.getAttribute("d")!.startsWith("M2 1.75C2")).toBe(true);
   });
 
   it("click toggles groups and selects files", () => {
@@ -146,6 +168,20 @@ describe("mountTreePanel", () => {
     expect(document.querySelector(".fast-pr-tree-toolbar")!.children).toHaveLength(0);
     m.destroy();
     expect(row.querySelector(".fast-pr-tree-toggle")).toBeNull();
+  });
+
+  it("copies comment counts and the current file from GitHub's tree", () => {
+    nativeTree();
+    document.querySelector('ul[aria-label="File Tree"]')!.innerHTML = `
+      <li role="treeitem" id="src/a/x.ts" aria-current="true"><svg class="octicon-comment"></svg><div>4</div></li>
+      <li role="treeitem" id="README.md"></li>`;
+    const m = mountTreePanel(result());
+    const ours = (p: string) => document.querySelector<HTMLElement>(`.fast-pr-tree li[data-path="${p}"]`)!;
+    expect(ours("src/a/x.ts").getAttribute("aria-current")).toBe("true");
+    expect(ours("src/a/x.ts").querySelector(".fast-pr-tree-comments")!.textContent).toBe("4");
+    expect(ours("README.md").hasAttribute("aria-current")).toBe(false);
+    expect(ours("README.md").querySelector(".fast-pr-tree-comments")).toBeNull();
+    m.destroy();
   });
 
   it("starts in original mode when stored", () => {

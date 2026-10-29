@@ -4,7 +4,7 @@ import { decorateRows, groupStarts, mountDecorations } from "../../src/content/d
 import type { FastPrFile } from "../../src/shared/types";
 
 const f = (digest: string, group: string | null, idx: number | null, auto = false): FastPrFile => ({
-  path: digest, pathDigest: digest, linesAdded: 1, linesDeleted: 0, group, groupIndex: idx,
+  path: digest, pathDigest: digest, linesAdded: 1, linesDeleted: 0, changeType: null, group, groupIndex: idx,
   autoViewed: auto, originalViewed: false, markedByHook: false, skippedUnviewed: false,
 });
 const FILES = [f("a", "Src", 0), f("b", "Src", 0), f("c", null, null), f("d", "Gen", 1, true), f("e", "Gen", 1, true)];

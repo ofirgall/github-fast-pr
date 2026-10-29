@@ -42,8 +42,8 @@ describe("buildGroupTree", () => {
     const g = tree[0] as any;
     expect(g).toMatchObject({ kind: "group", name: "Ungrouped", ungrouped: true });
     expect(g.children).toEqual([
-      { kind: "file", name: "zzz.txt", path: "zzz.txt", pathDigest: "dg:zzz.txt", autoViewed: false },
-      { kind: "file", name: "aaa.txt", path: "aaa.txt", pathDigest: "dg:aaa.txt", autoViewed: false },
+      { kind: "file", name: "zzz.txt", path: "zzz.txt", pathDigest: "dg:zzz.txt", autoViewed: false, changeType: null },
+      { kind: "file", name: "aaa.txt", path: "aaa.txt", pathDigest: "dg:aaa.txt", autoViewed: false, changeType: null },
     ]);
   });
   it("returns empty for no files", () => {
