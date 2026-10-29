@@ -89,6 +89,15 @@ describe("renderTree", () => {
     expect(lines('[data-kind="group"]')).toEqual(["+1,210", "-2"]);
   });
 
+  it("adds one indent-line cell per ancestor level", () => {
+    const ul = renderTree(buildGroupTree(toOrdered(FILES)), () => {});
+    const lines = (sel: string) =>
+      ul.querySelector(sel)!.querySelectorAll(":scope > .fast-pr-tree-row .fast-pr-tree-line").length;
+    expect(lines('[data-kind="group"]')).toBe(0);
+    expect(lines('[data-kind="dir"]')).toBe(1); // src/a under its group
+    expect(lines('[data-path="src/a/x.ts"]')).toBe(2);
+  });
+
   it("file icons follow changeType, like GitHub's tree", () => {
     const files = [
       { ...FILES[2], path: "a.md", changeType: "ADDED" },

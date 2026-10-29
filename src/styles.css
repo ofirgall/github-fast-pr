@@ -46,6 +46,12 @@
   position: relative; display: flex; align-items: center; gap: 8px; min-height: 32px; padding-right: 8px; cursor: pointer;
   color: var(--fgColor-default, #1f2328); border-radius: 6px;
 }
+/* Indent lines, as GitHub's tree: invisible until the tree is hovered or focused. */
+.fast-pr-tree-spacer { display: flex; align-self: stretch; flex: none; margin-right: -8px; }
+.fast-pr-tree-line { width: 8px; height: 100%; border-right: 1px solid transparent; box-sizing: border-box; }
+.fast-pr-tree:hover .fast-pr-tree-line, .fast-pr-tree:focus-within .fast-pr-tree-line {
+  border-right-color: var(--borderColor-muted, #d1d9e0b3);
+}
 .fast-pr-tree-row:hover { background: var(--control-transparent-bgColor-hover, rgba(208,215,222,.32)); }
 .fast-pr-tree li[aria-current="true"] > .fast-pr-tree-row { background: var(--control-transparent-bgColor-selected, rgba(208,215,222,.24)); }
 .fast-pr-tree li[aria-current="true"] > .fast-pr-tree-row::after {

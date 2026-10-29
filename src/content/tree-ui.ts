@@ -100,7 +100,12 @@ function buildItem(node: TreeNode, level: number): HTMLLIElement {
   li.setAttribute("aria-level", String(level));
   li.tabIndex = -1;
   const row = el("div", "fast-pr-tree-row");
-  row.style.paddingLeft = `${(level - 1) * 8}px`;
+  // One 8px cell per ancestor level; their borders are the indent lines shown on hover.
+  if (level > 1) {
+    const spacer = el("span", "fast-pr-tree-spacer");
+    for (let i = 1; i < level; i++) spacer.append(el("span", "fast-pr-tree-line"));
+    row.append(spacer);
+  }
   if (node.kind === "file") {
     li.dataset.kind = "file";
     li.dataset.digest = node.pathDigest;
