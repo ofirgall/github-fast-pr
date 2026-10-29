@@ -1,4 +1,4 @@
 node_modules
 dist
 .tmp-inject/
-github-fast-pr-*.zip
+github-fast-pr*.zip
