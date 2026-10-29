@@ -126,10 +126,8 @@ describe("mountTreePanel", () => {
     expect(panel.nextElementSibling).toBe(scroll);
     expect(scroll.classList.contains("fast-pr-hidden")).toBe(true);
     const btn = panel.querySelector<HTMLButtonElement>(".fast-pr-tree-toggle")!;
-    expect(btn.textContent).toBe("Grouped");
     expect(btn.getAttribute("aria-pressed")).toBe("true");
     btn.click();
-    expect(btn.textContent).toBe("Original");
     expect(btn.getAttribute("aria-pressed")).toBe("false");
     expect(scroll.classList.contains("fast-pr-hidden")).toBe(false);
     expect(panel.querySelector<HTMLElement>("ul.fast-pr-tree")!.hidden).toBe(true);
@@ -137,6 +135,17 @@ describe("mountTreePanel", () => {
     m.destroy();
     expect(document.querySelector(".fast-pr-tree-panel")).toBeNull();
     expect(scroll.classList.contains("fast-pr-hidden")).toBe(false);
+  });
+
+  it("puts the toggle after GitHub's filter button when the filter row exists", () => {
+    nativeTree();
+    document.body.insertAdjacentHTML("afterbegin", `<div id="diff-file-tree-filter"><input><div><button>f</button></div></div>`);
+    const m = mountTreePanel(result());
+    const row = document.getElementById("diff-file-tree-filter")!;
+    expect(row.lastElementChild!.classList.contains("fast-pr-tree-toggle")).toBe(true);
+    expect(document.querySelector(".fast-pr-tree-toolbar")!.children).toHaveLength(0);
+    m.destroy();
+    expect(row.querySelector(".fast-pr-tree-toggle")).toBeNull();
   });
 
   it("starts in original mode when stored", () => {

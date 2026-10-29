@@ -19,6 +19,7 @@ const P = {
   chevRight: "M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z",
   dir: "M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z",
   dirOpen: "M.513 1.513A1.75 1.75 0 0 1 1.75 1h3.5c.55 0 1.07.26 1.4.7l.9 1.2a.25.25 0 0 0 .2.1H13a1 1 0 0 1 1 1v.5H2.75a.75.75 0 0 0 0 1.5h11.978a1 1 0 0 1 .994 1.117L15 13.25A1.75 1.75 0 0 1 13.25 15H1.75A1.75 1.75 0 0 1 0 13.25V2.75c0-.464.184-.91.513-1.237Z",
+  zap: "M9.504.43a1.516 1.516 0 0 1 2.437 1.713L10.415 5.5h2.123c1.57 0 2.346 1.909 1.22 3.004l-7.34 7.142a1.249 1.249 0 0 1-.871.354h-.302a1.25 1.25 0 0 1-1.157-1.723L5.633 10.5H3.462c-1.57 0-2.346-1.909-1.22-3.004L9.503.429Zm1.047 1.074L3.286 8.571A.25.25 0 0 0 3.462 9H6.75a.75.75 0 0 1 .694 1.034l-1.713 4.188 6.982-6.793A.25.25 0 0 0 12.538 7H9.25a.75.75 0 0 1-.683-1.06l2.008-4.418.003-.006a.036.036 0 0 0-.004-.009l-.006-.006-.008-.003h-.006l-.026.006Z",
   file: "M2 1.75C2 .784 2.784 0 3.75 0h6.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16h-9.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h9.5a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 9 4.25V1.5Zm6.5.062V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914-.013-.011Z",
 };
 
@@ -159,6 +160,8 @@ export function renderTree(
 }
 
 const NATIVE_TREE = 'ul[role="tree"][aria-label="File Tree"]';
+/** The "Filter files…" row; the toggle sits after its filter button. */
+const FILTER_ROW = "#diff-file-tree-filter";
 
 export interface Mounted { destroy(): void }
 
@@ -169,7 +172,8 @@ export function mountTreePanel(result: FastPrResult): Mounted {
   const toolbar = el("div", "fast-pr-tree-toolbar");
   const toggle = el("button", "fast-pr-tree-toggle");
   toggle.type = "button";
-  toolbar.append(toggle);
+  markUi(toggle);
+  toggle.append(icon(P.zap));
   const tree = renderTree(nodes, (digest) => {
     location.hash = "diff-" + digest;
   });
@@ -179,9 +183,9 @@ export function mountTreePanel(result: FastPrResult): Mounted {
   let container: HTMLElement | null = null;
 
   const apply = () => {
-    toggle.textContent = mode === "grouped" ? "Grouped" : "Original";
     toggle.setAttribute("aria-pressed", String(mode === "grouped"));
-    toggle.title = mode === "grouped" ? "Showing grouped tree; click for GitHub's tree" : "Showing GitHub's tree; click for grouped tree";
+    toggle.title = mode === "grouped" ? "Fast PR grouped tree: on (click for GitHub's tree)" : "Fast PR grouped tree: off (click to turn on)";
+    toggle.setAttribute("aria-label", "Fast PR grouped tree");
     tree.hidden = mode !== "grouped";
     container?.classList.toggle("fast-pr-hidden", mode === "grouped");
   };
@@ -202,6 +206,10 @@ export function mountTreePanel(result: FastPrResult): Mounted {
     if (panel.parentElement !== c.parentElement || panel.nextSibling !== c) {
       c.parentElement.insertBefore(panel, c);
     }
+    // Next to GitHub's filter button when that row exists, else in our own toolbar.
+    const row = document.querySelector(FILTER_ROW);
+    const home = row ?? toolbar;
+    if (toggle.parentElement !== home || (row && toggle !== row.lastElementChild)) home.append(toggle);
     apply();
   };
   const sched = throttled(ensure, 50);
@@ -217,6 +225,7 @@ export function mountTreePanel(result: FastPrResult): Mounted {
       mo.disconnect();
       sched.cancel();
       container?.classList.remove("fast-pr-hidden");
+      toggle.remove();
       panel.remove();
     },
   };
