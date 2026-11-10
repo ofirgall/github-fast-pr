@@ -1,15 +1,32 @@
-import type { Diffstat, DiffstatRow } from "../core/diffstat";
+import { tallyDiffstat, type Diffstat, type DiffstatRow } from "../core/diffstat";
+import type { FastPrFile } from "../shared/types";
 import { el, fmt, isOwnMutation, markUi, throttled } from "./dom";
 
 export interface Native {
   container: HTMLElement;
-  srOnly: HTMLElement;
+  /** GitHub's totals as text, to notice when they change (a new push). */
+  text: string;
   numbers: HTMLElement[];
   squares: HTMLElement | null;
 }
 
+/**
+ * The React header keeps the diffstat in the tab bar (PH_Navigation) in the classic
+ * experience, and in the PageHeader description (next to the branch names) in the new one.
+ */
+const DIFFSTAT_SCOPES = ['[data-component="PH_Navigation"]', '[data-component="PageHeader"]'];
+
 export function findNativeDiffstat(root: ParentNode): Native | null {
-  const scope = root.querySelector('[data-component="PH_Navigation"]') ?? root;
+  const scopes = DIFFSTAT_SCOPES.map((s) => root.querySelector(s)).filter((s): s is Element => s !== null);
+  if (scopes.length === 0) scopes.push(root as Element);
+  for (const scope of scopes) {
+    const n = findIn(scope);
+    if (n) return n;
+  }
+  return findClassic(root);
+}
+
+function findIn(scope: ParentNode): Native | null {
   for (const s of scope.querySelectorAll<HTMLElement>("span.sr-only")) {
     if (!(s.textContent ?? "").trim().startsWith("Lines changed:")) continue;
     const container = s.parentElement;
@@ -17,7 +34,7 @@ export function findNativeDiffstat(root: ParentNode): Native | null {
     const kids = [...container.children] as HTMLElement[];
     return {
       container,
-      srOnly: s,
+      text: s.textContent ?? "",
       numbers: kids.filter(
         (c) => c.tagName === "SPAN" && c !== s && !c.classList.contains("sr-only") && !c.classList.contains("fast-pr-diffstat"),
       ),
@@ -25,6 +42,31 @@ export function findNativeDiffstat(root: ParentNode): Native | null {
     };
   }
   return null;
+}
+
+/** The classic files page: <span id="diffstat"><span>+824</span><span>−38</span><span>squares</span></span>. */
+function findClassic(root: ParentNode): Native | null {
+  const container = root.querySelector<HTMLElement>("#diffstat");
+  if (!container) return null;
+  const kids = ([...container.children] as HTMLElement[]).filter((c) => !c.classList.contains("fast-pr-diffstat"));
+  const numbers = kids.filter((c) => c.classList.contains("color-fg-success") || c.classList.contains("color-fg-danger"));
+  if (numbers.length === 0) return null;
+  return {
+    container,
+    text: numbers.map((n) => (n.textContent ?? "").trim()).join(" "),
+    numbers,
+    squares: kids.find((c) => !numbers.includes(c)) ?? null,
+  };
+}
+
+/** Header counts for files already grouped and ordered (the hook's or the classic page's). */
+export function resultDiffstat(files: FastPrFile[]): Diffstat {
+  return tallyDiffstat(
+    files.map((f) => ({
+      file: f,
+      group: f.groupIndex === null ? null : { index: f.groupIndex, name: f.group ?? "", autoViewed: f.autoViewed },
+    })),
+  );
 }
 
 const signed = (sign: string, n: number) => `${sign}${fmt(n)}`;
@@ -113,16 +155,17 @@ export function buildWidget(stat: Diffstat): HTMLElement {
   return w;
 }
 
-/** The count pill on the "Files changed" tab. */
+/** The count pill on the "Files changed" tab (React header, else the classic one). */
 export function findFilesCounter(root: ParentNode): HTMLElement | null {
   return root.querySelector<HTMLElement>(
-    '#prs-files-anchor-tab [data-component="CounterLabel"]:not(.fast-pr-files-count)',
+    '#prs-files-anchor-tab [data-component="CounterLabel"]:not(.fast-pr-files-count), #files_tab_counter:not(.fast-pr-files-count)',
   );
 }
 
 /** Copy of the native pill showing files to review, with the full count muted in parentheses. */
 export function buildFilesCount(stat: Diffstat, native: HTMLElement): HTMLElement {
   const c = native.cloneNode(false) as HTMLElement;
+  c.removeAttribute("id");
   c.classList.remove("fast-pr-native-hidden");
   c.classList.add("fast-pr-files-count");
   markUi(c);
@@ -185,7 +228,7 @@ export function createDiffstatController(onNativeChange: () => void): DiffstatCo
     renderFiles();
     const n = findNativeDiffstat(document);
     if (!n) return;
-    const text = n.srOnly.textContent ?? "";
+    const text = n.text;
     if (nativeText === null) nativeText = text;
     else if (text !== nativeText) {
       nativeText = text;
@@ -218,7 +261,7 @@ export function createDiffstatController(onNativeChange: () => void): DiffstatCo
       stat = s;
       isLoading = false;
       const n = findNativeDiffstat(document);
-      nativeText = n ? (n.srOnly.textContent ?? "") : null;
+      nativeText = n ? n.text : null;
       render();
     },
     loading() {

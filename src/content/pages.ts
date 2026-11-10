@@ -1,11 +1,12 @@
 import { compileConfig, ungroupedViewPriority } from "../core/config";
-import { computeDiffstat, tallyDiffstat } from "../core/diffstat";
+import { computeDiffstat, type DiffFile } from "../core/diffstat";
 import { findChangesRoute, prIdentity, type PrIdentity } from "../core/route";
+import { fetchClassicSummaries } from "./classic";
 import { getConfigByPr, getConfigBySha, type CachedConfig } from "../core/storage";
 import { effectiveConfig, localConfig } from "../shared/config-source";
-import { RESULT_EVENT, type FastPrFile } from "../shared/types";
+import { RESULT_EVENT } from "../shared/types";
 import { mountDecorations } from "./decorations";
-import { createDiffstatController } from "./diffstat-ui";
+import { createDiffstatController, resultDiffstat } from "./diffstat-ui";
 import { debounced } from "./dom";
 import { reloadGuardKey, resolveConfig, shouldReload } from "./loader";
 import { debug } from "./log";
@@ -27,16 +28,6 @@ function logDevInvalid(id: PrIdentity, cfg: CachedConfig | null): void {
   if (loggedDev.has(k)) return;
   loggedDev.add(k);
   console.error(`[fast-pr] local config (Fast PR menu): ${cfg.error}`);
-}
-
-/** Header counts from the hook's result, which already holds each file's group. */
-function resultDiffstat(files: FastPrFile[]) {
-  return tallyDiffstat(
-    files.map((f) => ({
-      file: f,
-      group: f.groupIndex === null ? null : { index: f.groupIndex, name: f.group ?? "", autoViewed: f.autoViewed },
-    })),
-  );
 }
 
 export function startChangesPage(page: PageInfo): Teardown {
@@ -120,6 +111,7 @@ export function startChangesPage(page: PageInfo): Teardown {
   };
 }
 
+/** The React changes route; null when the user is on the classic experience (/files). */
 async function fetchChangesRoute(page: PageInfo) {
   const res = await fetch(`/${page.owner}/${page.repo}/pull/${page.number}/changes`, {
     credentials: "same-origin",
@@ -129,8 +121,21 @@ async function fetchChangesRoute(page: PageInfo) {
       "GitHub-Verified-Fetch": "true",
     },
   });
+  // Classic users are redirected to /files, which has no JSON form (406).
+  if (res.redirected && new URL(res.url).pathname.endsWith("/files")) return null;
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return findChangesRoute(await res.json());
+}
+
+/** This PR's identity and per-file counts, from whichever files view the user is on. */
+async function fetchSummaries(page: PageInfo): Promise<{ id: PrIdentity; summaries: DiffFile[] } | null> {
+  const found = await fetchChangesRoute(page);
+  if (found) {
+    const id = prIdentity(found.route);
+    return id ? { id, summaries: found.route.diffSummaries } : null;
+  }
+  const classic = await fetchClassicSummaries(page);
+  return classic ? { id: classic.identity, summaries: classic.summaries } : null;
 }
 
 export function startConversationPage(page: PageInfo): Teardown {
@@ -148,18 +153,13 @@ export function startConversationPage(page: PageInfo): Teardown {
 
   async function refresh() {
     try {
-      const found = await fetchChangesRoute(page);
+      const found = await fetchSummaries(page);
       if (disposed) return;
       if (!found) {
         ctl.set(null);
         return;
       }
-      const id = prIdentity(found.route);
-      if (!id) {
-        ctl.set(null);
-        return;
-      }
-      const summaries = found.route.diffSummaries;
+      const { id, summaries } = found;
       const eff = effectiveConfig(id);
       if (eff?.dev) logDevInvalid(id, eff.cfg);
       const cached = eff?.cfg ?? null;

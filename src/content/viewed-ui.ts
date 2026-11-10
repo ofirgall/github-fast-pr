@@ -13,7 +13,13 @@ export interface NativeProgress {
   total: number;
 }
 
-/** GitHub's progress block, found by its screen-reader text "65 of 228 files viewed". */
+const CLASSIC_RE = /^([\d,]+)\s*\/\s*([\d,]+)$/;
+const int = (s: string) => Number(s.replace(/,/g, ""));
+
+/**
+ * GitHub's progress block: in the React view found by its screen-reader text
+ * "65 of 228 files viewed", in the classic view by its "22 / 43" count.
+ */
 export function findViewedProgress(root: ParentNode): NativeProgress | null {
   for (const s of root.querySelectorAll<HTMLElement>("span.sr-only")) {
     const m = SR_RE.exec((s.textContent ?? "").trim());
@@ -21,6 +27,12 @@ export function findViewedProgress(root: ParentNode): NativeProgress | null {
     if (m && container && !container.hasAttribute("data-fast-pr-ui")) {
       return { container, viewed: Number(m[1]), total: Number(m[2]) };
     }
+  }
+  const count = root.querySelector<HTMLElement>(".js-review-count");
+  const m = CLASSIC_RE.exec((count?.textContent ?? "").trim());
+  const container = count?.closest<HTMLElement>(".diffbar-item") ?? count?.closest<HTMLElement>("progress-bar");
+  if (m && container && !container.hasAttribute("data-fast-pr-ui")) {
+    return { container, viewed: int(m[1]), total: int(m[2]) };
   }
   return null;
 }

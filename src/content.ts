@@ -1,6 +1,7 @@
 // ISOLATED-world content script: config loading, PR page UI, auto-viewed persistence.
 import { classifyPath } from "./content/router";
 import { startChangesPage, startConversationPage, type Teardown } from "./content/pages";
+import { startClassicFilesPage } from "./content/classic-page";
 import { debug } from "./content/log";
 import { RESULT_EVENT } from "./shared/types";
 
@@ -21,7 +22,12 @@ function sync(): void {
   if (page.kind === "none") return;
   debug("page", page.kind, key);
   try {
-    teardown = page.kind === "changes" ? startChangesPage(page) : startConversationPage(page);
+    teardown =
+      page.kind === "changes"
+        ? startChangesPage(page)
+        : page.kind === "files"
+          ? startClassicFilesPage(page)
+          : startConversationPage(page);
   } catch (e) {
     console.warn("[fast-pr] start error", e);
   }

@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { compileConfig, parseConfig } from "../../src/core/config";
 import { computeDiffstat } from "../../src/core/diffstat";
-import { buildWidget, createDiffstatController, findNativeDiffstat, HIDE_DELAY_MS } from "../../src/content/diffstat-ui";
+import { buildFilesCount, buildWidget, createDiffstatController, findFilesCounter, findNativeDiffstat, HIDE_DELAY_MS } from "../../src/content/diffstat-ui";
 
 const NATIVE = `<div data-component="PH_Navigation"><div class="d-flex flex-items-center gap-1" id="stat"><span aria-hidden="true" class="f6 fgColor-success text-bold">+28,358</span><span aria-hidden="true" class="f6 fgColor-danger text-bold">-199</span><span class="sr-only">Lines changed: 28358 additions &amp; 199 deletions</span><div class="d-flex" id="squares"><span>■</span></div></div></div>`;
 
@@ -29,6 +29,28 @@ describe("diffstat widget", () => {
     expect(n.numbers.map((x) => x.textContent)).toEqual(["+28,358", "-199"]);
     expect(n.squares!.id).toBe("squares");
     expect(findNativeDiffstat(document.createElement("div"))).toBeNull();
+  });
+
+  it("finds the native container in the new PR view's page header", () => {
+    document.body.innerHTML = `<div data-component="PH_Navigation"><a>Files changed</a></div><div data-component="PageHeader"><div class="summary"><div class="diffStat" id="stat2"><span aria-hidden="true" class="f6 fgColor-success text-bold">+799</span><span aria-hidden="true" class="f6 fgColor-danger text-bold">-36</span><span class="sr-only">Lines changed: 799 additions &amp; 36 deletions</span><div class="d-flex" id="squares2"></div></div></div></div>`;
+    const n = findNativeDiffstat(document)!;
+    expect(n.container.id).toBe("stat2");
+    expect(n.numbers.map((x) => x.textContent)).toEqual(["+799", "-36"]);
+    expect(n.squares!.id).toBe("squares2");
+  });
+
+  it("finds the classic files page's diffstat and counter", () => {
+    document.body.innerHTML = `<span id="files_tab_counter" class="Counter" title="43">43</span><span class="diffstat" id="diffstat"><span class="color-fg-success">+824</span><span class="color-fg-danger">−38</span><span id="sq"><span class="diffstat-block-added"></span></span></span>`;
+    const n = findNativeDiffstat(document)!;
+    expect(n.container.id).toBe("diffstat");
+    expect(n.text).toBe("+824 −38");
+    expect(n.numbers.map((x) => x.textContent)).toEqual(["+824", "−38"]);
+    expect(n.squares!.id).toBe("sq");
+    const counter = findFilesCounter(document)!;
+    expect(counter.id).toBe("files_tab_counter");
+    const copy = buildFilesCount(stat, counter);
+    expect(copy.id).toBe("");
+    expect(copy.textContent).toBe("2 (3)");
   });
 
   it("builds adjusted/original lines and a per-group popover", () => {

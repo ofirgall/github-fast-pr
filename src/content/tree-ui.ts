@@ -358,12 +358,35 @@ const FILTER_ROW = "#diff-file-tree-filter";
 
 export interface Mounted { destroy(): void }
 
+/** Where the grouped tree lives on a page: next to GitHub's own tree, which it can hide. */
+export interface TreeHost {
+  /** GitHub's tree, and the element hidden while the grouped tree is on (ours goes before it). */
+  find(): { native: Element; hide: HTMLElement } | null;
+  /** Row the toggle joins (at its end); our own toolbar when null. */
+  toggleRow(): Element | null;
+  /** Copy state only GitHub's tree knows (comments, current file). */
+  sync?(tree: HTMLElement, native: Element): void;
+}
+
+/** The React changes view. */
+export const reactTreeHost: TreeHost = {
+  find() {
+    const native = document.querySelector(NATIVE_TREE);
+    const hide = native?.parentElement;
+    return native && hide ? { native, hide } : null;
+  },
+  toggleRow: () => document.querySelector(FILTER_ROW),
+  sync: syncFromNative,
+};
+
 export interface TreeDeps {
   send: typeof sendViewedBatch;
   /** Update GitHub's own in-page viewed state; false when its store can't be reached. */
   applyToGitHub: (paths: string[], viewed: boolean) => boolean;
   /** The menu's "Auto collapse groups" option; read from storage when unset. */
   collapseGroups?: () => boolean;
+  /** Defaults to the React changes view. */
+  host?: TreeHost;
 }
 
 let warnedStore = false;
@@ -443,10 +466,12 @@ export function mountTreePanel(
     apply();
   });
 
+  const host = deps.host ?? reactTreeHost;
   const ensure = () => {
-    const native = document.querySelector(NATIVE_TREE);
-    const c = native?.parentElement;
-    if (!c || !c.parentElement) return;
+    const found = host.find();
+    const native = found?.native;
+    const c = found?.hide;
+    if (!native || !c || !c.parentElement) return;
     if (container !== c) {
       container?.classList.remove("fast-pr-hidden");
       container = c;
@@ -455,10 +480,10 @@ export function mountTreePanel(
       c.parentElement.insertBefore(panel, c);
     }
     // Next to GitHub's filter button when that row exists, else in our own toolbar.
-    const row = document.querySelector(FILTER_ROW);
+    const row = host.toggleRow();
     const home = row ?? toolbar;
     if (toggle.parentElement !== home || (row && toggle !== row.lastElementChild)) home.append(toggle);
-    if (native) syncFromNative(tree, native);
+    host.sync?.(tree, native);
     apply();
   };
   const sched = throttled(ensure, 50);

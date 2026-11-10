@@ -11,6 +11,8 @@ Big PRs mix the code that matters with lockfiles, generated code and other noise
 
 Repos without a config or `linguist-generated` files are left untouched.
 
+It works with both of GitHub's pull request experiences: the new one (`/pull/N/changes`) and the classic one (`/pull/N/files`).
+
 ---
 
 ## Installation

@@ -34,6 +34,15 @@ describe("viewed progress", () => {
     expect(findViewedProgress(document)).toMatchObject({ viewed: 3, total: 4 });
   });
 
+  it("finds the classic page's count", () => {
+    document.body.innerHTML =
+      `<div class="pr-review-tools"><span class="diffbar-item hide-sm" id="item"><progress-bar ratio="22 / 43">` +
+      `<div><div><span class="js-review-count">22  /  1,043</span> files viewed</div></div></progress-bar></span></div>`;
+    const n = findViewedProgress(document)!;
+    expect(n).toMatchObject({ viewed: 22, total: 1043 });
+    expect(n.container.id).toBe("item");
+  });
+
   it("subtracts auto-viewed files", () => {
     expect(adjustedProgress(result(), { viewed: 3, total: 4 }, initial)).toEqual({ viewed: 1, total: 2 });
     expect(adjustedProgress(result(), { viewed: 0, total: 4 }, initial)).toEqual({ viewed: 0, total: 2 });
